@@ -553,7 +553,8 @@ return `
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <title>REvil VLESS-Proxy</title>
     <style>
       * {
@@ -576,16 +577,11 @@ return `
       }
 
       body {
-        font-family:
-          'Inter',
-          -apple-system,
-          BlinkMacSystemFont,
-          Helvetica,
-          sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         background-color: var(--background-primary);
         color: var(--text-primary);
         padding: 20px;
-        line-height: 1.5;
+        line-height: 1.4;
       }
       .container {
         max-width: 768px;
@@ -636,7 +632,7 @@ return `
 
       .config-content pre {
         overflow-x: auto;
-        font-family: 'Monaco', 'Consolas', monospace;
+        font-family: 'IBM Plex Mono', monospace;
         font-size: 12px;
         line-height: 1.4;
         color: var(--text-primary);
