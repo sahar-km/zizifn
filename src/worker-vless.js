@@ -547,7 +547,6 @@ function getDianaConfig(userCode, hostName) {
     `${baseUrl}?path=%2Fapi%2Fv8%3Fed%3D2048&${commonParams}` +
     `&fp=firefox&alpn=h2%2Chttp%2F1.1#${hostName}`;
     
-  // New Clash Meta import URL format
   const clashMetaImportUrl = 
     `https://sub.victoriacross.ir/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}` +
     `&remote_config=https://raw.githubusercontent.com/sahar-km/EdgeSub/refs/heads/main/public/minimal_remote_rules.ini` +
@@ -812,6 +811,13 @@ return `
 
       .client-btn:focus {
         animation: pulse 1.5s infinite;
+      }
+
+      .client-btn {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       .footer {
