@@ -540,17 +540,19 @@ function getDianaConfig(userCode, hostName) {
     `encryption=none&host=${hostName}&type=${networkType}` + `&security=tls&sni=${hostName}`;
 
   const freedomConfig =
-    `${baseUrl}?path=%2Fapi%2Fv1&eh=Sec-WebSocket-Protocol` +
+    `${baseUrl}?path=/api/v4&eh=Sec-WebSocket-Protocol` +
     `&ed=2560&${commonParams}&fp=chrome&alpn=h3#${hostName}`;
 
   const dreamConfig =
-    `${baseUrl}?path=%2Fapi%2Fv8%3Fed%3D2048&${commonParams}` +
-    `&fp=firefox&alpn=h2%2Chttp%2F1.1#${hostName}`;
-    
-  const clashMetaImportUrl = 
-    `https://sub.victoriacross.ir/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}` +
+    `${baseUrl}?path=/api/v2?ed=2048&${commonParams}` +
+    `&fp=firefox&alpn=h2,http/1.1#${hostName}`;
+
+  const clashMetaFullUrl = 
+    `clash://install-config?url=${encodeURIComponent(
+      `https://revil-sub.pages.dev/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}`
+    )}` +
     `&remote_config=https://raw.githubusercontent.com/sahar-km/EdgeSub/refs/heads/main/public/minimal_remote_rules.ini` +
-    `&udp=false&ss_uot=false&show_host=false&forced_ws0rtt=false`;
+    `&udp=true&ss_uot=false&show_host=false&forced_ws0rtt=false`;
 
 return `
 <!doctype html>
@@ -607,7 +609,7 @@ return `
 
       .header p {
         color: var(--text-secondary);
-        font-size: 13px;
+        font-size: 12px;
       }
 
       .config-card {
@@ -999,18 +1001,9 @@ return `
         </div>
         <div class="client-config-card">
           <!-- Clash Meta - Updated with new URL format -->
-          <a
-          href="clash://install-config?url=${clashMetaImportUrl}"
-            class="client-btn"
-          >
+          <a href="${clashMetaFullUrl}" class="client-btn">
             <div class="client-icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="#FF7A3D"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
                 <path d="M4 4h16v16H4z" />
                 <path d="M10 10h4v4H10z" />
                 <path d="M14 8H10V4h4z" />
@@ -1020,21 +1013,10 @@ return `
             Import to Clash-Meta
           </a>
           <!-- NekoBox -->
-          <a
-            href="clash://install-config?url=${encodeURIComponent(freedomConfig)}"
-            class="client-btn"
-          >
+          <a href="clash://install-config?url=${encodeURIComponent(freedomConfig)}" class="client-btn" >
             <div class="client-icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="#FF7A3D"
-              >
-                <path
-                  d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
             Import to NekoBox
@@ -1052,10 +1034,11 @@ return `
           const originalText = button.textContent;
           button.textContent = 'Copied!';
           button.style.background = '#FF7A3D';
-          button.style.color = '#A3512B';
+          button.style.color = '#262626';
           setTimeout(() => {
             button.textContent = originalText;
-            button.style.background = '#FF7A3D';
+            button.style.background = '#262626';
+            button.style.color = '#FF7A3D';
           }, 1000);
         });
       }
