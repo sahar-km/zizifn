@@ -549,7 +549,7 @@ function getDianaConfig(userCode, hostName) {
     
   // New Clash Meta import URL format
   const clashMetaImportUrl = 
-    `https://sub.victoriacross.ir/sub/clash-meta?url=${encodeURIComponent(dreamConfig)}` +
+    `https://sub.victoriacross.ir/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}` +
     `&remote_config=https://raw.githubusercontent.com/sahar-km/EdgeSub/refs/heads/main/public/minimal_remote_rules.ini` +
     `&udp=false&ss_uot=false&show_host=false&forced_ws0rtt=false`;
 
@@ -583,7 +583,7 @@ return `
       }
 
       body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        font-family: 'Helvetica', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Arial, sans-serif;
         background-color: var(--background-primary);
         color: var(--text-primary);
         padding: 20px;
@@ -603,12 +603,12 @@ return `
         font-weight: 600;
         color: var(--text-accent);
         font-size: 24px;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
       }
 
       .header p {
         color: var(--text-secondary);
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .config-card {
@@ -620,7 +620,7 @@ return `
       }
 
       .config-title {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 600;
         color: var(--text-accent);
         margin-bottom: 15px;
@@ -638,8 +638,9 @@ return `
 
       .config-content pre {
         overflow-x: auto;
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'menlo', 'monaco', 'IBM Plex Mono', 'Courier New', monospace;
         font-size: 12px;
+        font-weight: 400;
         line-height: 1.4;
         color: var(--text-primary);
         margin: 0;
@@ -672,6 +673,7 @@ return `
 
       .attribute strong {
         font-size: 14px;
+        font-weight: 500;
         color: var(--text-accent);
         word-break: break-all;
       }
@@ -680,27 +682,66 @@ return `
         position: absolute;
         top: 10px;
         right: 10px;
-        background-color: var(--accent-color);
-        color: var(--button-text);
+        background-color: var(--background-tertiary);
+        color: var(--accent-color);
         border: 1px solid #404040;
         padding: 5px 12px;
         border-radius: 6px;
         cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        font-size: 13px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 12px;
         font-weight: 600;
         overflow: hidden;
-        box-shadow: 0 2px 5px rgba(255, 122, 61, 0.3);
-        transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        box-shadow: 0 1px 3px rgba(255, 122, 61, 0.3);
+        transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
         z-index: 1;
+      }
+      .copy-btn {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      
+      .copy-btn:active {
+          transform-origin: center;
+          transform: scale(0.98);
+          transition: transform 0.1s ease-in-out;
+      }
+
+      .copy-btn:focus {
+          animation: pulse 1.5s infinite;
+      }
+
+      .copy-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transform: translateX(-100%);
+        transition: 0.6s;
+        z-index: -1;
+      }
+
+      .copy-btn:hover::before {
+        transform: translateX(100%);
       }
 
       .copy-btn:hover {
         border-color: var(--accent-color);
         transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(255, 122, 61, 0.4);
+        box-shadow: 0 12px 16px rgba(255, 122, 61, 0.4);
       }
 
+      .copy-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+      }
       .client-buttons {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -708,7 +749,7 @@ return `
         margin-top: 15px;
         background: #262626;
         border-radius: 6px;
-        color: #e5e5e5;
+        color: var(--accent-color);
       }
 
       .client-btn {
@@ -718,8 +759,8 @@ return `
         padding: 8px;
         margin-top: 8px;
         border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
+        font-size: 14px;
+        font-weight: 400;
         position: relative;
         overflow: hidden;
         color: var(--text-primary);
@@ -775,15 +816,16 @@ return `
 
       .footer {
         text-align: center;
-        margin-top: 30px;
-        color: #737373;
-        font-size: 13px;
+        margin-top: 20px;
+        color: var( --text-secondary);
+        font-size: 14px;
+        font-weight: 400;
       }
+      
       .mt-1 {
         margin-top: 0.25rem;
       }
 
-      /* Pulse effect for primary button */
       @keyframes pulse {
         0% {
           box-shadow: 0 0 0 0 rgba(255, 122, 61, 0.4);
@@ -942,7 +984,7 @@ return `
           </a>
         </div>
       </div>
-      <!-- Xray Core Clients -->
+      <!-- Sing-Box Core Clients -->
       <div class="config-card">
         <div class="config-title">Sing-Box Core Clients</div>
         <div class="config-content">
