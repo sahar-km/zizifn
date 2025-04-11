@@ -1,4 +1,4 @@
-// <!--GAMFC-->Last update: 2025-03-31 23:16:20 UTC - NiREvil - version base on commit e89d971ccfcf0fea389d1caf66f11ae4cf9a54c9<!--GAMFC-END-->.
+// <!--GAMFC-->Last update: 2025-04-04 23:59:59 UTC - we are all REvil - version base on commit e89d971ccfcf0fea389d1caf66f11ae4cf9a54c9<!--GAMFC-END-->.
 // @ts-nocheck
 import { connect } from 'cloudflare:sockets';
 
@@ -162,10 +162,10 @@ async function streamOverWSHandler(request) {
           );
         },
         close() {
-          log(`readableWebSocketStream is close`);
+          log('readableWebSocketStream is close');
         },
         abort(reason) {
-          log(`readableWebSocketStream is abort`, JSON.stringify(reason));
+          log('readableWebSocketStream is abort', JSON.stringify(reason));
         },
       }),
     )
@@ -342,7 +342,7 @@ function processStreamHeader(chunk, userCode) {
   if (!addressValue) {
     return {
       hasError: true,
-      message: `addressValue is empty`,
+      message: 'addressValue is empty',
     };
   }
 
@@ -419,7 +419,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, streamResponseHeader, r
   await remoteSocket.readable
     .pipeTo(
       new WritableStream({
-        start() { },
+        start() {},
         async write(chunk, controller) {
           hasIncomingData = true;
           if (webSocket.readyState !== WS_READY_STATE_OPEN) {
@@ -433,20 +433,20 @@ async function remoteSocketToWS(remoteSocket, webSocket, streamResponseHeader, r
           }
         },
         close() {
-          log(`remoteConnection readable close`);
+          log('remoteConnection readable close');
         },
         abort(reason) {
-          console.error(`remoteConnection readable abort`, reason);
+          console.error('remoteConnection readable abort', reason);
         },
       }),
     )
     .catch(error => {
-      console.error(`remoteSocketToWS has error`, error.stack || error);
+      console.error('remoteSocketToWS has error', error.stack || error);
       safeCloseWebSocket(webSocket);
     });
 
   if (hasIncomingData === false && retry) {
-    log(`retry connection`);
+    log('retry connection');
     retry();
   }
 }
@@ -461,11 +461,11 @@ async function handleUDPOutBound(webSocket, streamResponseHeader, log) {
   let isHeaderSent = false;
 
   const transformStream = new TransformStream({
-    start(controller) { },
+    start(controller) {},
     transform(chunk, controller) {
       // udp message 2 byte is the the length of udp data
       // TODO: this should have bug, beacsue maybe udp chunk can be in two websocket message
-      for (let index = 0; index < chunk.byteLength;) {
+      for (let index = 0; index < chunk.byteLength; ) {
         const lengthBuffer = chunk.slice(index, index + 2);
         const udpPakcetLength = new DataView(lengthBuffer).getUint16(0);
         const udpData = new Uint8Array(chunk.slice(index + 2, index + 2 + udpPakcetLength));
@@ -473,7 +473,7 @@ async function handleUDPOutBound(webSocket, streamResponseHeader, log) {
         controller.enqueue(udpData);
       }
     },
-    flush(controller) { },
+    flush(controller) {},
   });
 
   // only handle dns udp for now
@@ -527,12 +527,9 @@ async function handleUDPOutBound(webSocket, streamResponseHeader, log) {
 /**
  *
  * we are all REvil
- * [js-sha256]{@link https://github.com/emn178/js-sha256}
- * @version 0.14.0 ()
+ * @version 0.11.0 ()
  * @description This code is based on the js-sha256 project, with the addition of the SHA-224 hash algorithm implementation.
- * @author Chen, Yi-Cyuan [emn178@gmail.com]
- * @copyright Chen, Yi-Cyuan 2014-2026
- * @license MIT
+ * @author Chen, Yi-Cyuan [emn178@gmail.com][js-sha256]{@link https://github.com/emn178/js-sha256}
  */
 
 function getDianaConfig(userCode, hostName) {
@@ -543,451 +540,438 @@ function getDianaConfig(userCode, hostName) {
     `encryption=none&host=${hostName}&type=${networkType}` + `&security=tls&sni=${hostName}`;
 
   const freedomConfig =
-    `${baseUrl}?path=%2Fapi%2Fv1&eh=Sec-WebSocket-Protocol` +
+    `${baseUrl}?path=/api/v4&eh=Sec-WebSocket-Protocol` +
     `&ed=2560&${commonParams}&fp=chrome&alpn=h3#${hostName}`;
 
   const dreamConfig =
-    `${baseUrl}?path=%2Fapi%2Fv8%3Fed%3D2048&${commonParams}` + `&fp=firefox&alpn=h2%2Chttp%2F1.1#${hostName}`;
+    `${baseUrl}?path=/api/v2?ed=2048&${commonParams}` +
+    `&fp=firefox&alpn=h2,http/1.1#${hostName}`;
+
+    const clashMetaFullUrl = `clash://install-config?url=${encodeURIComponent(
+        `https://sub.victoriacross.ir/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}&remote_config=&udp=truee&ss_uot=false&show_host=false&forced_ws0rtt=false`
+        )}`;
 
   return `
-<!DOCTYPE html>
-  <html lang="en">
+<!doctype html>
+<html lang="en">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <title>REvil VLESS-Proxy</title>
-      <style>
-          * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>VLESS Proxy Configuration</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-          :root {
-              --background-primary: #0C0C0C;
-              --background-secondary: #1A1A1A;
-              --background-tertiary: #262626;
-              --border-color: #262626;
-              --text-primary: #E5E5E5;
-              --text-secondary: #A3A3A3;
-              --text-accent: #FFFFFF;
-              --accent-color: #FF7A3D;
-              --button-text: #000000;
-              --shadow-color: rgba(0, 0, 0, 0.4);
-          }
+      :root {
+        /* Firebase Studio Inspired Palette */
+        --background-primary: #121212; /* Darkest background */
+        --background-secondary: #1E1E1E; /* Card/Container background */
+        --background-tertiary: #2C2C2C; /* Input/Code block/Button background */
+        --border-color: #383838;       /* Subtle borders */
+        --border-color-hover: #555555; /* Border highlight on hover */
+        --text-primary: #E0E0E0;       /* Main text */
+        --text-secondary: #A0A0A0;     /* Subdued/Helper text */
+        --text-accent: #FFFFFF;        /* Bright text/Headings */
+        --accent-primary: #FFCA28;     /* Firebase Yellow/Orange Accent */
+        --accent-primary-darker: #FFA000; /* Darker shade for interactions */
+        --button-text-primary: #121212;   /* Text on accent background */
+        --button-text-secondary: var(--text-primary); /* Text on dark buttons */
+        --shadow-color: rgba(0, 0, 0, 0.4);
+        --shadow-color-accent: rgba(255, 202, 40, 0.3); /* Accent shadow */
+        --border-radius: 8px; /* Consistent rounding */
+        --transition-speed: 0.2s;
+      }
 
-          body {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-              background-color: var(--background-primary);
-              color: var(--text-primary);
-              padding: 20px;
-              line-height: 1.5;
-          }
-          .container {
-              max-width: 800px;
-              margin: 0 auto;
-          }
+      body {
+        font-family: "EB Garamond", serif;
+        font-optical-sizing: auto;
+        font-weight: <weight>;
+        font-style: normal;
+     /* font-family: 'inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; */
+     /* font-family: 'Libre Baskerville', serif; */
+     /* font-family: 'Helvetica', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Arial, sans-serif; */
+        background-color: var(--background-primary);
+        color: var(--text-primary);
+        padding: 24px;
+        line-height: 1.5;
+        font-weight: 400;
+      }
 
-          .header {
-              text-align: center;
-              margin-bottom: 30px;
-          }
+      .container {
+        max-width: 800px; /* Slightly wider */
+        margin: 20px auto;
+        padding: 0 16px; /* Add horizontal padding */
+      }
 
-          .header h1 {
-              font-weight: 600;
-              color: var(--text-accent);
-              font-size: 24px;
-              margin-bottom: 8px;
-          }
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+      }
 
-          .header p {
-              color: var(--text-secondary);
-              font-size: 13px;
-          }
+      .header h1 {
+        font-weight: 600;
+        color: var(--text-accent);
+        font-size: 28px; /* Larger heading */
+        margin-bottom: 8px;
+      }
 
-          .config-card {
-              background: var(--background-secondary);
-              border-radius: 5px;
-              padding: 20px;
-              margin-bottom: 20px;
-              border: 1px solid var(--border-color);
-          }
+      .header p {
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
 
-          .config-title {
-              font-size: 16px;
-              font-weight: 600;
-              color: var(--text-accent);
-              margin-bottom: 15px;
-              padding-bottom: 15px;
-              border-bottom: 1px solid var(--border-color);
-          }
+      .config-card {
+        background: var(--background-secondary);
+        border-radius: var(--border-radius);
+        padding: 20px; /* Increased padding */
+        margin-bottom: 24px;
+        border: 1px solid var(--border-color);
+        transition: border-color var(--transition-speed) ease;
+      }
 
-          .config-content {
-              position: relative;
-              background: var(--background-tertiary);
-              border-radius: 6px;
-              padding: 15px;
-              margin-bottom: 21px;
-          }
+      .config-card:hover {
+         /* Optional: subtle border highlight on card hover */
+         /* border-color: var(--border-color-hover); */
+      }
 
-          .config-content pre {
-              overflow-x: auto;
-              font-family: 'IBM Plex Mono', monospace;
-              font-size: 12px;
-              line-height: 1.4;
-              color: var(--text-secondary);
-              margin: 0;
-              white-space: pre-wrap;
-              word-break: break-all;
-          }
+      .config-title {
+        font-size: 18px; /* Larger title */
+        font-weight: 500; /* Medium weight */
+        color: var(--text-accent);
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+      }
 
-          .attributes {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-              gap: 15px;
-              margin-bottom: 15px;
-              padding: 15px;
-              background: var(--background-tertiary);
-              border-radius: 6px;
-              max-width: 800px;
-              margin: 0 auto;
-          }
+      .config-content {
+        position: relative;
+        background: var(--background-tertiary);
+        border-radius: var(--border-radius);
+        padding: 16px;
+        margin-bottom: 20px; /* Space below code block */
+        border: 1px solid var(--border-color);
+      }
 
-          .attribute {
-              display: flex;
-              flex-direction: column;
-              gap: 5px;
-          }
+      .config-content pre {
+        overflow-x: auto;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: 13px; /* Slightly larger code font */
+        font-weight: 400;
+        line-height: 1.6; /* Increased line height for readability */
+        color: var(--text-primary);
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
 
-          .attribute span {
-              font-size: 13px;
-              color: var(--text-secondary);
-          }
+      .attributes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Adjust minmax */
+        gap: 20px; /* Increased gap */
+        margin-bottom: 16px;
+        /* Removed background, border, padding - let card handle it */
+      }
 
-          .attribute strong {
-              font-size: 14px;
-              color: var(--text-accent);
-              word-break: break-all;
-          }
+      .attribute {
+        display: flex;
+        flex-direction: column;
+        gap: 4px; /* Space between label and value */
+      }
 
-          .copy-btn {
-              position: absolute;
-              top: 10px;
-              right: 10px;
-              background: var(--accent-color);
-              color: var(--button-text);
-              border: 1px solid #404040; 
-              padding: 5px 12px;
-              border-radius: 6px;
-              cursor: pointer;
-              font-family: 'Inter', sans-serif;
-              font-size: 13px;
-              font-weight: 600;
-              overflow: hidden;
-              box-shadow: 0 1px 4px rgba(255, 122, 61, 0.3);
-              transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-              z-index: 1;
-          }
-  
-          .copy-btn:hover {
-              border-color: var(--accent-color);
-              transform: translateY(-2px);
-              box-shadow: 0 8px 12px rgba(255, 122, 61, 0.4);
-          }
-  
-          .client-buttons {
-              display: grid;
-              grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-              gap: 12px;
-              margin-top: 15px;
-              background: #262626;
-              border-radius: 6px;
-              color: #E5E5E5;
-          }
+      .attribute span {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
 
-          .client-btn {
-              display: flex;
-              gap: 8px;
-              background: var(--background-tertiary);
-              padding: 8px;
-              margin-top: 8px;
-              border-radius: 6px;
-              font-size: 13px;
-              font-weight: 500;
-              position: relative;
-              overflow: hidden;
-              color: var(--text-primary);
-              border: 1px solid #404040;                                      
-              transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
-              z-index: 1;
-          }
+      .attribute strong {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-accent);
+        word-break: break-all;
+      }
 
-          .client-btn {
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            user-select: none;
-            -webkit-user-select: none;
-        }
+      /* --- Button Styles --- */
+      .button { /* Base button class */
+        display: inline-flex; /* Use inline-flex for alignment */
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px; /* Adjusted padding */
+        border-radius: var(--border-radius);
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        border: 1px solid var(--border-color);
+        background-color: var(--background-tertiary);
+        color: var(--button-text-secondary);
+        transition: background-color var(--transition-speed) ease,
+                    border-color var(--transition-speed) ease,
+                    transform var(--transition-speed) ease,
+                    box-shadow var(--transition-speed) ease;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+        position: relative; /* Needed for potential pseudo-elements */
+        overflow: hidden; /* For effects like ripples or shines */
+      }
 
-          .client-icon {
-              width: 18px;
-              height: 18px;
-              border-radius: 4px;
-              background-color: #333;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-          }
+      .button:hover {
+        background-color: #383838; /* Slightly lighter background on hover */
+        border-color: var(--border-color-hover);
+        transform: translateY(-1px); /* Subtle lift */
+        box-shadow: 0 4px 8px var(--shadow-color); /* Subtle shadow */
+      }
 
-          .client-btn {
-              box-shadow: 0 1px 4px rgba(255, 122, 61, 0.3);
-          }
-  
-          .client-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                120deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-          );
-            transform: translateX(-100%);
-            transition: 0.6s;
-            z-index: -1;
-          }
-  
-          .client-btn:hover::before {
-            transform: translateX(100%);
-          }
-  
-          .client-btn:hover {
-              border-color: var(--accent-color);
-              transform: translateY(-2px);
-              box-shadow: 0 12px 15px rgba(255, 122, 61, 0.4);
-          }
-  
-          .client-btn:active {
-            transform: translateY(0);
-          }
+      .button:active {
+        transform: translateY(0px) scale(0.98); /* Press down effect */
+        box-shadow: none;
+      }
 
-          .client-btn:focus {
-            animation: pulse 1.5s infinite;
-          }
+      .button:focus-visible { /* Modern focus indicator */
+         outline: 2px solid var(--accent-primary);
+         outline-offset: 2px;
+      }
 
-          .footer {
-              text-align: center;
-              margin-top: 30px;
-              color: #737373;
-              font-size: 13px;
-          }
-  
-          /* Pulse effect for primary button */
-          @keyframes pulse {
-              0% {
-                  box-shadow: 0 0 0 0 rgba(255, 122, 61, 0.4);
-              }
-              70% {
-                  box-shadow: 0 0 0 10px rgba(255, 122, 61, 0);
-              }
-              100% {
-                  box-shadow: 0 0 0 0 rgba(255, 122, 61, 0);
-              }
-          }
-  
-          @media (max-width: 600px) {
-              .container {
-                  padding: 10px;
-              }
-              .config-card {
-                  padding: 10px;
-              }
-              .config-content pre {
-                  white-space: pre-wrap;
-                  word-break: break-all;
-              }
-              .copy-btn {
-                  top: 10px;
-                  right: 10px;
-              }
-              .attributes {
-                  grid-template-columns: 1fr;
-                  gap: 10px;
-                  padding: 9px;
-              }
-              .client-buttons {
-                  grid-template-columns: repeat(auto-fill, minmax(139px, 1fr));
-              }
-  
-                ::-webkit-scrollbar {
-                    width: 8px;
-                    height: 8px;
-                }
+      /* Specific Button: Copy Button */
+      .copy-btn {
+        position: absolute;
+        top: 12px; /* Adjusted position */
+        right: 12px;
+        padding: 6px 12px; /* Smaller padding */
+        font-size: 12px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 500;
+        /* Inherits base button styles, override specifics */
+      }
 
-                ::-webkit-scrollbar-track {
-                    background: var(--background-primary);
-                    border-radius: 4px;
-                }
+      /* Specific Button: Client Buttons */
+      .client-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Wider min */
+        gap: 12px;
+        margin-top: 16px;
+        /* Removed background, color - handled by card/buttons */
+      }
 
-                ::-webkit-scrollbar-thumb {
-                    background: var(--border-color);
-                    border-radius: 4px;
-                    border: 2px solid var(--background-primary);
-                    transition: all 0.3s ease;
-                }
+      .client-btn {
+         /* Inherits base .button styles */
+         width: 100%; /* Make buttons fill grid cells */
+      }
 
-                ::-webkit-scrollbar-thumb:hover {
-                    background: var(--accent-color);
-                    border-radius: 6px;
-                }
+      .client-icon {
+        width: 20px; /* Slightly larger icon container */
+        height: 20px;
+        border-radius: 4px;
+        background-color: #3a3a3a; /* Slightly different icon bg */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0; /* Prevent icon shrinking */
+      }
 
-                * {
-                    scrollbar-width: thin;
-                    scrollbar-color: var(--border-color) var(--background-primary);
-                }
+      .client-icon svg {
+         width: 14px; /* Adjust icon size within container */
+         height: 14px;
+         fill: var(--accent-primary); /* Use accent for icons */
+      }
 
-                @media (max-width: 768px) {
-                    ::-webkit-scrollbar {
-                        width: 6px;
-                        height: 6px;
-                    }
+      .footer {
+        text-align: center;
+        margin-top: 40px; /* More space before footer */
+        padding-bottom: 20px; /* Space at the very bottom */
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 400;
+      }
 
-                    ::-webkit-scrollbar-thumb {
-                        border-width: 1px;
-                    }
-                }
+      .footer p {
+          margin-bottom: 4px;
+      }
 
-                @media (max-width: 576px) {
-                    ::-webkit-scrollbar {
-                        width: 4px;
-                        height: 4px;
-                    }
+      /* --- Scrollbar Styles (Keep as is, they fit the dark theme) --- */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--background-primary);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-color); /* Use border color for thumb */
+        border-radius: 4px;
+        border: 2px solid var(--background-primary);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--border-color-hover); /* Lighter thumb on hover */
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-color) var(--background-primary);
+      }
 
-                    ::-webkit-scrollbar-thumb {
-                        border-width: 1px;
-                        border-radius: 2px;
-                    }
+      /* --- Responsive Adjustments --- */
+      @media (max-width: 768px) {
+        body { padding: 16px; }
+        .container { padding: 0 8px; }
+        .header h1 { font-size: 24px; }
+        .header p { font-size: 13px; }
+        .config-card { padding: 16px; }
+        .config-title { font-size: 16px; }
+        .config-content pre { font-size: 12px; }
+        .attributes { grid-template-columns: 1fr; gap: 16px; }
+        .client-buttons { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+        .button { padding: 8px 12px; font-size: 13px; }
+        .copy-btn { top: 10px; right: 10px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { border-width: 1px; }
+      }
 
-                    ::-webkit-scrollbar-track {
-                        border-radius: 2px;
-                    }
-                }
-          }
-      </style>
+      @media (max-width: 480px) {
+        .client-buttons { grid-template-columns: 1fr; } /* Stack buttons */
+      }
+    </style>
   </head>
-<body>
-      <div class="container">
-          <div class="header">
-              <h1>VLESS Proxy Configurations</h1>
-              <p>Copy the configuration to import into your preferred client</p>
-          </div>
-          <!-- Proxy Info Card -->
-          <div class="config-card">
-              <div class="config-title">Proxy Information</div>
-              <div class="attributes">
-                  <div class="attribute">
-                      <span>Proxy IP:</span>
-                      <strong>${proxyIP}</strong>
-                  </div>
-                  <div class="attribute">
-                      <span>Status:</span>
-                      <strong>Active</strong>
-                  </div>
-              </div>
-          </div>
-          <!-- Xray Core Clients -->
-          <div class="config-card">
-              <div class="config-title">Xray Core Clients</div>
-              <div class="config-content">
-                  <button class="copy-btn" onclick="copyToClipboard(this, '${dreamConfig}')">Copy</button>
-                  <pre>${dreamConfig}</pre>
-              </div>
-                  <div class="client-config-card">
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>VLESS Proxy Configuration</h1>
+        <p>Copy the configuration or import directly into your client</p>
+      </div>
 
-                  <!-- Hiddify -->
-                  <a href="hiddify://install-config?url=${encodeURIComponent(freedomConfig)}" class="client-btn">
-                      <div class="client-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
-                              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                          </svg>
-                      </div>
-                      Import to Hiddify
-                  </a>
-                  <!-- V2rayNG -->
-                  <a href="v2rayng://install-config?url=${encodeURIComponent(dreamConfig)}" class="client-btn">
-                      <div class="client-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
-                              <path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3z"/>
-                          </svg>
-                      </div>
-                      Import to v2rayNG
-                  </a>
-                </div>
+      <!-- Proxy Info Card -->
+      <div class="config-card">
+        <div class="config-title">Proxy Information</div>
+        <div class="attributes">
+          <div class="attribute">
+            <span>Proxy IP / Host:</span>
+            <strong>${proxyIP}</strong>
           </div>
-         <!-- Xray Core Clients -->
-          <div class="config-card">
-              <div class="config-title">Sing-Box Core Clients</div>
-              <div class="config-content">
-                  <button class="copy-btn" onclick="copyToClipboard(this, '${freedomConfig}')">Copy</button>
-                  <pre>${freedomConfig}</pre>
-              </div>
-                  <div class="client-config-card">
-
-                  <!-- Hiddify -->
-                  <a href="sing-box://import-remote-profile?url=${encodeURIComponent(freedomConfig)}" class="client-btn">
-                      <div class="client-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
-                              <path d="M4 4h16v16H4z"/>
-                              <path d="M10 10h4v4H10z"/>
-                              <path d="M14 8H10V4h4z"/>
-                              <path d="M4 14h4v4H4z"/>
-                          </svg>
-                      </div>
-                      Import to Clash
-                  </a>
-                  <!-- V2rayNG -->
-                  <a href="clash://install-config?url=${encodeURIComponent(freedomConfig)}" class="client-btn">
-                      <div class="client-icon">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FF7A3D">
-                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                          </svg>
-                      </div>
-                      Import to NekoBox
-                  </a>
-              </div>
+          <div class="attribute">
+            <span>Status:</span>
+            <strong>Active</strong>
           </div>
-          <div class="footer">
-              <p>© 2025 REvil, All Rights Reserved</p>
           </div>
       </div>
-      <script>
-          function copyToClipboard(button, text) {
-              navigator.clipboard.writeText(text).then(() => {
-                  const originalText = button.textContent;
-                  button.textContent = 'Copied!';
-                  button.style.background = '#FF7A3D';
-                  button.style.color = '#A3512B';
-                  setTimeout(() => {
-                      button.textContent = originalText;
-                      button.style.background = '#FF7A3D';
-                  }, 1000);
-              });
-          }
-          document.addEventListener('DOMContentLoaded', function() {
-              const proxyIPElement = document.getElementById('proxyIP');
-              if (proxyIPElement && proxyIPElement.innerText === '${proxyIP}') {
-                  proxyIPElement.innerText = '192.168.1.1'; // Default placeholder
-              }
-          });
-      </script>
+
+      <!-- Xray Core Clients -->
+      <div class="config-card">
+        <div class="config-title">Xray Core Clients (V2rayNG, Hiddify)</div>
+        <div class="config-content">
+          <button class="button copy-btn" onclick="copyToClipboard(this, '${dreamConfig}')">Copy</button>
+          <pre>${dreamConfig}</pre>
+        </div>
+        <div class="client-buttons">
+          <!-- Hiddify -->
+          <a href="hiddify://install-config?url=${encodeURIComponent(freedomConfig)}" class="button client-btn">
+            <div class="client-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            Import to Hiddify
+          </a>
+          <!-- V2rayNG -->
+          <a href="v2rayng://install-config?url=${encodeURIComponent(dreamConfig)}" class="button client-btn">
+            <div class="client-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                 <path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3z" />
+              </svg>
+            </div>
+            Import to V2rayNG
+          </a>
+        </div>
+      </div>
+
+      <!-- Sing-Box Core Clients -->
+      <div class="config-card">
+        <div class="config-title">Sing-Box Core Clients (Clash Meta, NekoBox)</div>
+        <div class="config-content">
+          <button class="button copy-btn" onclick="copyToClipboard(this, '${freedomConfig}')">Copy</button>
+          <pre>${freedomConfig}</pre>
+        </div>
+        <div class="client-buttons">
+          <!-- Clash Meta -->
+          <a href="${clashMetaFullUrl}" class="button client-btn">
+            <div class="client-icon">
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="M4 4h16v16H4z" /> <path d="M10 10h4v4H10z" /> <path d="M14 8H10V4h4z" /> <path d="M4 14h4v4H4z" />
+              </svg>
+            </div>
+            Import to Clash Meta
+          </a>
+          <!-- NekoBox -->
+          <a href="clash://install-config?url=${encodeURIComponent(freedomConfig)}" class="button client-btn">
+            <div class="client-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+              </svg>
+            </div>
+            Import to NekoBox
+          </a>
+        </div>
+      </div>
+      <div class="footer">
+        <p>© REvil ${new Date().getFullYear()} All right reserved. </p>
+        <p>Secure. Private. Fast.</p>
+      </div>
+    </div>
+    <script>
+      function copyToClipboard(button, text) {
+        navigator.clipboard.writeText(text).then(() => {
+          const originalText = button.textContent;
+          // Use accent color for feedback, consistent with Firebase style
+          button.textContent = 'Copied!';
+          button.style.backgroundColor = 'var(--accent-primary)';
+          button.style.color = 'var(--button-text-primary)';
+          button.style.borderColor = 'var(--accent-primary-darker)'; // Darker border for contrast
+          button.disabled = true; // Disable briefly
+
+          setTimeout(() => {
+            button.textContent = originalText;
+            // Restore original styles explicitly
+            button.style.backgroundColor = 'var(--background-tertiary)';
+            button.style.color = 'var(--button-text-secondary)';
+            button.style.borderColor = 'var(--border-color)';
+            button.disabled = false;
+          }, 1200); // Slightly longer timeout
+        }).catch(err => {
+          console.error('Failed to copy text: ', err);
+          // Optional: Provide visual feedback for error
+          const originalText = button.textContent;
+          button.textContent = 'Error';
+          button.style.backgroundColor = '#D32F2F'; // Error color
+          button.style.color = '#FFFFFF';
+          button.style.borderColor = '#B71C1C';
+          button.disabled = true;
+           setTimeout(() => {
+            button.textContent = originalText;
+            button.style.backgroundColor = 'var(--background-tertiary)';
+            button.style.color = 'var(--button-text-secondary)';
+            button.style.borderColor = 'var(--border-color)';
+            button.disabled = false;
+          }, 1500);
+        });
+      }
+      
+      document.addEventListener('DOMContentLoaded', function () {
+        const proxyIPElement = document.getElementById('proxyIP');
+        if (proxyIPElement && proxyIPElement.innerText === '${proxyIP}') {
+          proxyIPElement.innerText = '192.168.1.1'; // Default placeholder
+        }
+      });
+    </script>
   </body>
 </html>
 `;
