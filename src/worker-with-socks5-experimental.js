@@ -1,4 +1,4 @@
-// <!--GAMFC-->Last update 2025-04-12 00:35:39 UTC - NiREvil - version base on commit 7785328dbc7e2b9802695f115381576a5d3561de<!--GAMFC-END-->.
+// <!--GAMFC-->Last update 2025-04-12 00:35:53 UTC - NiREvil - version base on commit ea17676a4a5981695ea6bdad31b4f8adabcd113f<!--GAMFC-END-->.
 // @ts-ignore
 import { connect } from 'cloudflare:sockets';
 
