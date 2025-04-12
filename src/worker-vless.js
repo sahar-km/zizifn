@@ -1,4 +1,4 @@
-// <!--GAMFC-->Last update: 2025-04-11 01:09:39 UTC - NiREvil - version base on commit ceb0bca2e97312eae5406e1105b3dc8f2462122c<!--GAMFC-END-->.
+// <!--GAMFC-->Last update: 2025-04-04 23:59:59 UTC - we are all REvil - version base on commit e89d971ccfcf0fea389d1caf66f11ae4cf9a54c9<!--GAMFC-END-->.
 // @ts-nocheck
 import { connect } from 'cloudflare:sockets';
 
@@ -559,7 +559,7 @@ function getDianaConfig(userCode, hostName) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <title>VLESS Proxy Configuration</title>
@@ -593,16 +593,15 @@ function getDianaConfig(userCode, hostName) {
       body {
         font-family: "EB Garamond", serif;
         font-optical-sizing: auto;
-        font-weight: <weight>;
         font-style: normal;
      /* font-family: 'inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; */
-     /* font-family: 'Libre Baskerville', serif; */
+     /* font-family: "Google Sans", sans-serif; */
      /* font-family: 'Helvetica', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Arial, sans-serif; */
         background-color: var(--background-primary);
         color: var(--text-primary);
         padding: 24px;
         line-height: 1.5;
-        font-weight: 400;
+        font-weight: 600;
       }
 
       .container {
@@ -617,7 +616,7 @@ function getDianaConfig(userCode, hostName) {
       }
 
       .header h1 {
-        font-weight: 600;
+        font-weight: 1,400;
         color: var(--text-accent);
         font-size: 28px; /* Larger heading */
         margin-bottom: 8px;
@@ -662,7 +661,7 @@ function getDianaConfig(userCode, hostName) {
 
       .config-content pre {
         overflow-x: auto;
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: Cansolas, 'IBM Plex Mono', monospace;
         font-size: 13px; /* Slightly larger code font */
         font-weight: 400;
         line-height: 1.6; /* Increased line height for readability */
@@ -715,9 +714,9 @@ function getDianaConfig(userCode, hostName) {
         background-color: var(--background-tertiary);
         color: var(--button-text-secondary);
         transition: background-color var(--transition-speed) ease,
-                    border-color var(--transition-speed) ease,
-                    transform var(--transition-speed) ease,
-                    box-shadow var(--transition-speed) ease;
+        border-color var(--transition-speed) ease,
+        transform var(--transition-speed) ease,
+        box-shadow var(--transition-speed) ease;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
         user-select: none;
