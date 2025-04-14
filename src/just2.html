@@ -1,3 +1,4 @@
+
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <title>VLESS Proxy Configuration</title>
+    <title>Proxy Configuration</title>
     <style>
       * {
         margin: 0;
@@ -16,39 +17,39 @@
 
       :root {
         /* Firebase Studio Inspired Palette */
-        --background-primary: #121212; /* Darkest background */
-        --background-secondary: #1E1E1E; /* Card/Container background */
-        --background-tertiary: #2C2C2C; /* Input/Code block/Button background */
-        --border-color: #383838;       /* Subtle borders */
-        --border-color-hover: #555555; /* Border highlight on hover */
-        --text-primary: #E0E0E0;       /* Main text */
-        --text-secondary: #A0A0A0;     /* Subdued/Helper text */
-        --text-accent: #FFFFFF;        /* Bright text/Headings */
-        --accent-primary: #FFCA28;     /* Firebase Yellow/Orange Accent */
-        --accent-primary-darker: #FFA000; /* Darker shade for interactions */
-        --button-text-primary: #121212;   /* Text on accent background */
-        --button-text-secondary: var(--text-primary); /* Text on dark buttons */
+        --background-primary: #121212; 
+        --background-secondary: #1E1E1E;
+        --background-tertiary: #2C2C2C; 
+        --border-color: #383838;
+        --border-color-hover: #555555;
+        --text-primary: #E0E0E0;
+        --text-secondary: #A0A0A0;
+        --text-accent: #FFFFFF;
+        --accent-primary: #FFCA28;
+        --accent-primary-darker: #FFA000;
+        --button-text-primary: #121212;
+        --button-text-secondary: var(--text-primary);
         --shadow-color: rgba(0, 0, 0, 0.4);
-        --shadow-color-accent: rgba(255, 202, 40, 0.3); /* Accent shadow */
-        --border-radius: 8px; /* Consistent rounding */
+        --shadow-color-accent: rgba(255, 202, 40, 0.3);
+        --border-radius: 8px;
         --transition-speed: 0.2s;
       }
 
       body {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-optical-sizing: auto;
+        font-style: normal;
         background-color: var(--background-primary);
         color: var(--text-primary);
         padding: 24px;
         line-height: 1.5;
-        font-weight: 400;
+        font-weight: 600;
       }
 
       .container {
-        max-width: 800px;
+        max-width: 800px; 
         margin: 20px auto;
-        padding: 0 16px;
-        box-shadow: 0 0 20px var(--shadow-color-accent); /* Glow effect */
-        border-radius: var(--border-radius);
+        padding: 0 16px; 
       }
 
       .header {
@@ -57,10 +58,10 @@
       }
 
       .header h1 {
-        color: var(--accent-primary); /* Firebase Yellow */
+        font-weight: 1,400;
+        color: var(--text-accent);
         font-size: 28px;
         margin-bottom: 8px;
-        font-weight: 600;
       }
 
       .header p {
@@ -74,8 +75,10 @@
         padding: 20px;
         margin-bottom: 24px;
         border: 1px solid var(--border-color);
-        box-shadow: 0 4px 8px var(--shadow-color); /* Subtle shadow */
         transition: border-color var(--transition-speed) ease;
+      }
+
+      .config-card:hover {
       }
 
       .config-title {
@@ -98,8 +101,8 @@
 
       .config-content pre {
         overflow-x: auto;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 13px;
+        font-family: Cansolas, 'IBM Plex Mono', monospace;
+        font-size: 13px; 
         font-weight: 400;
         line-height: 1.6;
         color: var(--text-primary);
@@ -110,7 +113,7 @@
 
       .attributes {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Adjust minmax */
         gap: 20px;
         margin-bottom: 16px;
       }
@@ -133,7 +136,6 @@
         word-break: break-all;
       }
 
-      /* --- Button Styles --- */
       .button {
         display: inline-flex;
         align-items: center;
@@ -150,19 +152,19 @@
         background-color: var(--background-tertiary);
         color: var(--button-text-secondary);
         transition: background-color var(--transition-speed) ease,
-                    border-color var(--transition-speed) ease,
-                    transform var(--transition-speed) ease,
-                    box-shadow var(--transition-speed) ease;
+        border-color var(--transition-speed) ease,
+        transform var(--transition-speed) ease,
+        box-shadow var(--transition-speed) ease;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
         user-select: none;
         -webkit-user-select: none;
-        position: relative;
+        position: relative; 
         overflow: hidden;
       }
 
       .button:hover {
-        background-color: #383838;
+        background-color: #383838; 
         border-color: var(--border-color-hover);
         transform: translateY(-1px);
         box-shadow: 0 4px 8px var(--shadow-color);
@@ -173,14 +175,14 @@
         box-shadow: none;
       }
 
-      .button:focus-visible {
-        outline: 2px solid var(--accent-primary);
-        outline-offset: 2px;
+      .button:focus-visible { 
+         outline: 2px solid var(--accent-primary);
+         outline-offset: 2px;
       }
 
       .copy-btn {
         position: absolute;
-        top: 12px;
+        top: 12px; 
         right: 12px;
         padding: 6px 12px;
         font-size: 12px;
@@ -190,20 +192,20 @@
 
       .client-buttons {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Wider min */
         gap: 12px;
         margin-top: 16px;
       }
 
       .client-btn {
-        width: 100%;
+         width: 100%;
       }
 
       .client-icon {
-        width: 20px;
+        width: 20px; 
         height: 20px;
         border-radius: 4px;
-        background-color: #3a3a3a;
+        background-color: #3a3a3a; 
         display: flex;
         align-items: center;
         justify-content: center;
@@ -211,25 +213,24 @@
       }
 
       .client-icon svg {
-        width: 14px;
-        height: 14px;
-        fill: var(--accent-primary); /* Firebase Yellow for icons */
+         width: 14px; 
+         height: 14px;
+         fill: var(--accent-primary);
       }
 
       .footer {
         text-align: center;
-        margin-top: 40px;
-        padding-bottom: 20px;
+        margin-top: 40px; 
+        padding-bottom: 20px; 
         color: var(--text-secondary);
         font-size: 13px;
         font-weight: 400;
       }
 
       .footer p {
-        margin-bottom: 4px;
+          margin-bottom: 4px;
       }
 
-      /* --- Scrollbar Styles --- */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -239,19 +240,18 @@
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb {
-        background: var(--border-color);
+        background: var(--border-color); /* Use border color for thumb */
         border-radius: 4px;
         border: 2px solid var(--background-primary);
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--border-color-hover);
+        background: var(--border-color-hover); /* Lighter thumb on hover */
       }
       * {
         scrollbar-width: thin;
         scrollbar-color: var(--border-color) var(--background-primary);
       }
 
-      /* --- Responsive Adjustments --- */
       @media (max-width: 768px) {
         body { padding: 16px; }
         .container { padding: 0 8px; }
@@ -292,7 +292,7 @@
             <span>Status:</span>
             <strong>Active</strong>
           </div>
-        </div>
+          </div>
       </div>
 
       <!-- Xray Core Clients -->
@@ -316,7 +316,7 @@
           <a href="v2rayng://install-config?url=${encodeURIComponent(dreamConfig)}" class="button client-btn">
             <div class="client-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3z" />
+                 <path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3z" />
               </svg>
             </div>
             Import to V2rayNG
@@ -335,8 +335,8 @@
           <!-- Clash Meta -->
           <a href="${clashMetaFullUrl}" class="button client-btn">
             <div class="client-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M4 4h16v16H4z" /> <path d="M10 10h4v4H10z" /> <path d="M14 8H10V4h4z" /> <path d="M4 14h4v4H4z" />
+               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                  <path d="M4 4h16v16H4z" /> <path d="M10 10h4v4H10z" /> <path d="M14 8H10V4h4z" /> <path d="M4 14h4v4H4z" />
               </svg>
             </div>
             Import to Clash Meta
@@ -345,46 +345,47 @@
           <a href="clash://install-config?url=${encodeURIComponent(freedomConfig)}" class="button client-btn">
             <div class="client-icon">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
               </svg>
             </div>
             Import to NekoBox
           </a>
         </div>
       </div>
-
       <div class="footer">
-        <p>© REvil ${new Date().getFullYear()} All rights reserved.</p>
+        <p>© REvil ${new Date().getFullYear()} All right reserved. </p>
         <p>Secure. Private. Fast.</p>
       </div>
     </div>
-
     <script>
       function copyToClipboard(button, text) {
         navigator.clipboard.writeText(text).then(() => {
           const originalText = button.textContent;
+          // Use accent color for feedback, consistent with Firebase style
           button.textContent = 'Copied!';
           button.style.backgroundColor = 'var(--accent-primary)';
           button.style.color = 'var(--button-text-primary)';
-          button.style.borderColor = 'var(--accent-primary-darker)';
-          button.disabled = true;
+          button.style.borderColor = 'var(--accent-primary-darker)'; // Darker border for contrast
+          button.disabled = true; // Disable briefly
 
           setTimeout(() => {
             button.textContent = originalText;
+            // Restore original styles explicitly
             button.style.backgroundColor = 'var(--background-tertiary)';
             button.style.color = 'var(--button-text-secondary)';
             button.style.borderColor = 'var(--border-color)';
             button.disabled = false;
-          }, 1200);
+          }, 1200); // Slightly longer timeout
         }).catch(err => {
           console.error('Failed to copy text: ', err);
+          // Optional: Provide visual feedback for error
           const originalText = button.textContent;
           button.textContent = 'Error';
-          button.style.backgroundColor = '#D32F2F';
+          button.style.backgroundColor = '#D32F2F'; // Error color
           button.style.color = '#FFFFFF';
           button.style.borderColor = '#B71C1C';
           button.disabled = true;
-          setTimeout(() => {
+           setTimeout(() => {
             button.textContent = originalText;
             button.style.backgroundColor = 'var(--background-tertiary)';
             button.style.color = 'var(--button-text-secondary)';
@@ -393,11 +394,11 @@
           }, 1500);
         });
       }
-
+      
       document.addEventListener('DOMContentLoaded', function () {
         const proxyIPElement = document.getElementById('proxyIP');
         if (proxyIPElement && proxyIPElement.innerText === '${proxyIP}') {
-          proxyIPElement.innerText = '192.168.1.1';
+          proxyIPElement.innerText = '192.168.1.1'; // Default placeholder
         }
       });
     </script>
