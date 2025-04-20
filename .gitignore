@@ -1,7 +1,16 @@
+# Node dependencies
 .DS_Store
-/node_modules
+node_modules
+
+# Wrangler state and secrets
 .wrangler/
 *-lock.*
 *.lock
 *.log
-dist
+
+# IDE specific files
+.vscode/
+*.swp
+
+# Optional: Ignore build artifacts if you ONLY want the root worker.js
+# dist/
