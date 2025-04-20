@@ -7,6 +7,12 @@ account_id = "cf764dd49f39fc7e994f1b0f87685cb2" # "YOUR_CLOUDFLARE_ACCOUNT_ID"
 UUID = "10e894da-61b1-4998-ac2b-e9ccb6af9d30"
 PROXYIP = "turk.radicalization.ir" # Or use "nima.nscl.ir"
 
+[[rules]]
+type = "Text" # Treat files matching globs as plain text
+# Match any .html, .css, or .js file ending with ?raw in any subdirectory
+globs = ["**/*.html?raw", "**/*.css?raw", "**/*.js?raw"] 
+fallthrough = true # Important: Allows other default rules (like for .js files) to still apply
+
 [build]
 watch_dir = "src"
 
