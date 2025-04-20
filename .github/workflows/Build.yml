@@ -28,6 +28,7 @@ jobs:
       - name: Build Raw Bundled Worker
         id: build-raw
         run: |
+          npm install --save-dev wrangler@4
           echo "Building raw worker bundle..."
           # Use wrangler build command which is specifically for building
           # It respects the 'main' field in wrangler.toml for entry
@@ -102,17 +103,19 @@ jobs:
           # Ensure it pushes the changes
           push: true
 
-      # --- Optional Deployment Step ---
+            # --- Optional Deployment Step ---
       # This step only runs if secrets are available
       - name: Deploy Obfuscated Worker to Cloudflare (Optional)
-        if: env.CF_API_TOKEN != ''
+        if: env.CLOUDFLARE_API_TOKEN != '' 
         run: |
-          echo "Deploying obfuscated worker (./worker.js) to Cloudflare..."
-          # Deploy the obfuscated file from the root directory
-          npx wrangler deploy ./worker.js --name ${{ vars.WORKER_NAME || 'your-default-worker-name' }} # Use worker name from vars or default
+          echo "Deploying pre-built, obfuscated worker (./worker.js) to Cloudflare..."
+          # Deploy the specific obfuscated file
+          # Add --format modules to tell Wrangler it's pre-built ES Module code
+          npx wrangler deploy ./worker.js --format modules --name ${{ vars.WORKER_NAME || 'revil-zfn' }} # Use your worker name or variable
         env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Optional vars for deployment context (can be set as repo variables)
-          # CF_VAR_UUID: ${{ secrets.UUID || vars.UUID }} # Prefer secret, fallback to variable
+          # Use the standard environment variable name
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Optional vars for deployment context
+          # CF_VAR_UUID: ${{ secrets.UUID || vars.UUID }}
           # CF_VAR_PROXYIP: ${{ secrets.PROXYIP || vars.PROXYIP }}
