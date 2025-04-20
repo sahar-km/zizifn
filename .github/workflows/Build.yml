@@ -1,0 +1,56 @@
+name: Build and Deploy Worker
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    name: Build, Commit & Deploy Worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Worker for Single File Output
+        id: build
+        run: |
+          # Use --dry-run to build without deploying
+          # Use --outdir to specify output directory
+          # Wrangler outputs to a file named based on the 'main' entry in wrangler.toml (e.g., index.js)
+          npx wrangler deploy --dry-run --outdir dist
+          # Rename the output file to worker.js (adjust if wrangler names it differently)
+          # Check the actual output name in Actions logs if this fails
+          mv dist/index.js dist/worker.js 
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Commit Single Worker File
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Auto-generate single worker file [skip ci]" # [skip ci] prevents triggering this workflow again
+          file_pattern: dist/worker.js
+          commit_user_name: GitHub Actions Bot
+          commit_user_email: actions@github.com 
+          # Optional: Add files instead of relying on pattern detection
+          # add: 'dist/worker.js' 
+          # Push changes (default is true)
+          # push: true 
+
+      - name: Deploy Worker to Cloudflare
+        run: npx wrangler deploy
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          
