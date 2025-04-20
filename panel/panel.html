@@ -1,0 +1,99 @@
+<!-- panel/panel.html -->
+<!-- Note: This is only the content for the <body> tag. -->
+<!-- The <head>, <html>, <body> tags are added by src/index.js -->
+
+<div class="container">
+  <div class="header">
+    <h1>VLESS PROXY CONFIGURATION</h1>
+    <p>Copy the configuration or import directly into your client</p>
+  </div>
+
+  <!-- Proxy Info Card -->
+  <div class="config-card">
+    <div class="config-title">Proxy Information</div>
+    <div class="attributes">
+      <div class="attribute">
+        <span>Hostname:</span>
+        <strong>{{HOST_NAME}}</strong>
+      </div>
+      <div class="attribute">
+        <span>Proxy IP / Host:</span>
+        <strong>{{PROXY_IP}}</strong>
+      </div>
+       <div class="attribute">
+        <span>User ID:</span>
+        <strong style="word-break: break-all;">{{USER_ID}}</strong>
+      </div>
+      <div class="attribute">
+        <span>Status:</span>
+        <strong>Active</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Xray Core Clients -->
+  <div class="config-card">
+    <div class="config-title">Xray Core Clients</div>
+    <div class="config-content">
+      <button class="button copy-btn" onclick="copyToClipboard(this, '{{DREAM_CONFIG_RAW}}')">Copy</button>
+      <pre>{{DREAM_CONFIG}}</pre>
+    </div>
+    <div class="client-buttons">
+        <!-- Hiddify -->
+       <a href="{{HIDDIFY_URL}}" class="button client-btn">
+         <div class="client-icon">
+           <!-- SVG for Hiddify (Example - use a relevant icon) -->
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+           </svg>
+         </div>
+         Import to Hiddify
+       </a>
+      <!-- V2rayNG -->
+      <a href="{{V2RAYNG_URL}}" class="button client-btn">
+        <div class="client-icon">
+          <!-- SVG for V2rayNG -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3zM11 16l-3-3 1.4-1.4 1.6 1.6 3.6-3.6L16 11l-5 5z" />
+          </svg>
+        </div>
+        Import to V2rayNG
+      </a>
+    </div>
+  </div>
+
+  <!-- Sing-Box Core Clients -->
+  <div class="config-card">
+    <div class="config-title">Sing-Box Core Clients</div>
+    <div class="config-content">
+      <button class="button copy-btn" onclick="copyToClipboard(this, '{{FREEDOM_CONFIG_RAW}}')">Copy</button>
+      <pre>{{FREEDOM_CONFIG}}</pre>
+    </div>
+    <div class="client-buttons">
+      <!-- Clash Meta -->
+      <a href="{{CLASH_META_URL}}" class="button client-btn">
+        <div class="client-icon">
+          <!-- SVG for Clash Meta -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+             <path d="M12 2l9 4.9V17L12 22l-9-5V6.9L12 2zm0 2.3L6.2 7.4v7.2L12 17.7l5.8-3.1V7.4L12 4.3z M12 11l-4 2v2l4 2 4-2v-2l-4-2z" />
+          </svg>
+        </div>
+        Import to Clash Meta
+      </a>
+      <!-- NekoBox -->
+      <a href="{{NEKOBOX_URL}}" class="button client-btn">
+        <div class="client-icon">
+          <!-- SVG for NekoBox -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.5 13.5c-1.1 0-2-.9-2-2v-3h-3c-1.1 0-2-.9-2-2V7h1.5v1.5c0 .28.22.5.5.5h3c.28 0 .5-.22.5-.5V7H17v3.5c0 1.1-.9 2-2 2h-1.5v3c0 .28-.22.5-.5.5z" />
+           </svg>
+        </div>
+        Import to NekoBox
+      </a>
+    </div>
+  </div>
+  <div class="footer">
+    <p>© {{YEAR}} REvil - All Rights Reserved.</p>
+    <p>Secure. Private. Fast.</p>
+  </div>
+</div>
