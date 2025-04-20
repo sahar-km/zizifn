@@ -892,15 +892,30 @@ function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
         .replace(/{{NEKOBOX_URL}}/g, nekoBoxImportUrl)
         .replace(/{{YEAR}}/g, new Date().getFullYear());
 
-    // Inject CSS and JS
-    // Place CSS inside <head> and JS before </body> for better performance/rendering
-    const cssInjection = `<style>\n${panelCss}\n</style>\n</head>`;
-    const jsInjection = `<script>\n${panelJs}\n</script>\n</body>`;
-
-    finalHtml = finalHtml.replace('</head>', cssInjection);
-    finalHtml = finalHtml.replace('</body>', jsInjection);
-
-    return finalHtml;
+    // --- Construct the Full HTML Document ---
+    const fullHtml = `
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Ibarra+Real+Nova:wght@700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <title>VLESS Proxy Configuration</title>
+    <style>
+${panelCss}
+    </style>
+</head>
+<body>
+${panelBodyContent}
+    <script>
+${panelJs}
+    </script>
+</body>
+</html>
+`; // Inject CSS directly into <style> tag, JS into <script>
+    return fullHtml.trim(); // Trim whitespace
 }
 
 
