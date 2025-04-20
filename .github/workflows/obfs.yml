@@ -1,4 +1,4 @@
-name: Obfs
+name: Obfuscation
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
           fetch-depth: 0
 
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "18"
           check-latest: false
 
       - name: Install dependencies
@@ -27,7 +27,7 @@ jobs:
 
       - name: Obfuscate code
         run: |
-          javascript-obfuscator src/worker-vless.js --output _worker.js \
+          javascript-obfuscator src/index.js --output _worker.js \
           --compact true \
           --control-flow-flattening true \
           --control-flow-flattening-threshold 1 \
