@@ -1,0 +1,22 @@
+{
+  "name": "cloudflare-vless-worker",
+  "version": "1.1.0",
+  "description": "Cloudflare Worker for VLESS proxy with obfuscation and generated files",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build:raw": "wrangler build && mv dist/_worker.js dist/worker.raw.js",
+    "obfuscate": "npm run build:raw && npx javascript-obfuscator dist/worker.raw.js --output worker.js && cp worker.js dist/worker.obfuscated.js",
+    "build": "npm run obfuscate",
+    "deploy:obfuscated": "npm run build && wrangler deploy ./worker.js",
+    "deploy:raw": "npm run build:raw && wrangler deploy dist/worker.raw.js",
+    "deploy": "wrangler deploy src/index.js"
+  },
+  "author": "NiREvil",
+  "license": "MIT",
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.0",
+    "wrangler": "^3.0.0"
+  }
+}
