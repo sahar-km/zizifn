@@ -1,4 +1,4 @@
-name = "REvil-Z" 
+name = "revil-zfn" 
 main = "src/index.js" 
 compatibility_date = "2025-04-20" 
 account_id = "cf764dd49f39fc7e994f1b0f87685cb2" # "YOUR_CLOUDFLARE_ACCOUNT_ID"
@@ -8,7 +8,6 @@ UUID = "10e894da-61b1-4998-ac2b-e9ccb6af9d30"
 PROXYIP = "turk.radicalization.ir" # Or use "nima.nscl.ir"
 
 [build]
-command = "npm run build"
 watch_dir = "src"
 
 # [site]
