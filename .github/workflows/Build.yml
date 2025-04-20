@@ -1,17 +1,20 @@
-name: Build and Deploy Worker
+name: Build Worker Files
 
 on:
   push:
     branches:
-      - main
+      - main 
   workflow_dispatch:
 
 jobs:
-  build_and_deploy:
+  build:
     runs-on: ubuntu-latest
-    name: Build, Commit & Deploy Worker
+    name: Build Bundled & Obfuscated Files
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -20,37 +23,81 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm install --only=dev
 
-      - name: Build Worker for Single File Output
-        id: build
+      - name: Build Raw Bundled Worker
+        id: build-raw
         run: |
-          # Use --dry-run to build without deploying
-          # Use --outdir to specify output directory
-          # Wrangler outputs to a file named based on the 'main' entry in wrangler.toml (e.g., index.js)
-          npx wrangler deploy --dry-run --outdir dist
-          # Rename the output file to worker.js (adjust if wrangler names it differently)
-          # Check the actual output name in Actions logs if this fails
-          mv dist/index.js dist/worker.js 
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          echo "Building raw worker bundle..."
+          # Use wrangler build command which is specifically for building
+          # It respects the 'main' field in wrangler.toml for entry
+          # And outputs to the standard ./dist directory by default
+          npx wrangler build 
+          # Wrangler v3 build outputs to dist/_worker.js by default
+          # Check if the output exists
+          if [ ! -f dist/_worker.js ]; then
+              echo "Build output dist/_worker.js not found!"
+              # Try the older default if the above fails
+              if [ -f dist/index.js ]; then
+                  echo "Found dist/index.js instead, renaming..."
+                  mv dist/index.js dist/_worker.js
+              else
+                  echo "No suitable build output found in dist/"
+                  ls -la dist/ # List directory contents for debugging
+                  exit 1
+              fi
+          fi
+          # Rename the raw bundled file for clarity before committing
+          mv dist/_worker.js dist/worker.raw.js
+          echo "Raw bundled worker saved to dist/worker.raw.js"
 
-      - name: Commit Single Worker File
+      - name: Obfuscate Bundled Worker
+        id: obfuscate
+        run: |
+          echo "Obfuscating dist/worker.raw.js..."
+          # Input is the raw bundled file, output is the final obfuscated worker.js in the root
+          npx javascript-obfuscator dist/worker.raw.js --output worker.js \
+            # --- Obfuscation Options (Keep or adjust as needed) ---
+            --compact true \
+            --control-flow-flattening true \
+            --control-flow-flattening-threshold 0.75 \
+            --dead-code-injection true \
+            --dead-code-injection-threshold 0.4 \
+            --identifier-names-generator hexadecimal \
+            --string-array true \
+            --string-array-encoding 'rc4' \
+            --string-array-threshold 0.75 \
+            --transform-object-keys true \
+            --unicode-escape-sequence true
+            # --- End Obfuscation Options ---
+          echo "Obfuscated worker saved to ./worker.js (root)"
+          # Also copy the obfuscated file to dist for consistency if desired
+          cp worker.js dist/worker.obfuscated.js
+          echo "Obfuscated worker also copied to dist/worker.obfuscated.js"
+
+
+      - name: Commit Built Files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Auto-generate single worker file [skip ci]" # [skip ci] prevents triggering this workflow again
-          file_pattern: dist/worker.js
+          commit_message: "chore: Build worker.js (obfuscated) and dist/worker.raw.js [skip ci]"
+          # Commit both the obfuscated file in root and the raw file in dist
+          file_pattern: "worker.js dist/worker.raw.js dist/worker.obfuscated.js"
           commit_user_name: GitHub Actions Bot
-          commit_user_email: actions@github.com 
-          # Optional: Add files instead of relying on pattern detection
-          # add: 'dist/worker.js' 
-          # Push changes (default is true)
-          # push: true 
+          commit_user_email: actions@github.com
+          # Ensure it pushes the changes
+          push: true
 
-      - name: Deploy Worker to Cloudflare
-        run: npx wrangler deploy
+      # --- Optional Deployment Step ---
+      # This step only runs if secrets are available
+      - name: Deploy Obfuscated Worker to Cloudflare (Optional)
+        if: env.CF_API_TOKEN != ''
+        run: |
+          echo "Deploying obfuscated worker (./worker.js) to Cloudflare..."
+          # Deploy the obfuscated file from the root directory
+          npx wrangler deploy ./worker.js --name ${{ vars.WORKER_NAME || 'your-default-worker-name' }} # Use worker name from vars or default
         env:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          
+          # Optional vars for deployment context (can be set as repo variables)
+          # CF_VAR_UUID: ${{ secrets.UUID || vars.UUID }} # Prefer secret, fallback to variable
+          # CF_VAR_PROXYIP: ${{ secrets.PROXYIP || vars.PROXYIP }}
