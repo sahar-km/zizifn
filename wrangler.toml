@@ -1,11 +1,18 @@
-name = "cf-worker-ws-dev-0415" # todo
-#name = "cf-worker-connect-test" # todo
-#main = "test/worker/cf-cdn-cgi-trace2.js"
-
-#main = "test/worker/worker-connect-test.js"
-main = "src/worker-vless.js"
-
-compatibility_date = "2024-04-15"
+name = "REvil-Z" 
+main = "src/index.js" 
+compatibility_date = "2025-04-20" 
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID" 
 
 [vars]
-# UUID = "example_dev_token"
+UUID = "10e894da-61b1-4998-ac2b-e9ccb6af9d30"
+PROXYIP = "turk.radicalization.ir" # Or use "nima.nscl.ir"
+
+[build]
+command = "npm run build"
+watch_dir = "src"
+
+# [site]
+# bucket = "./public"
+# [[unsafe.bindings]]
+# name = "SOCKETS"
+# type = "connect"
