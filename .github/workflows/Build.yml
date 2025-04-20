@@ -57,19 +57,34 @@ jobs:
           echo "Obfuscating dist/worker.raw.js..."
           # Input is the raw bundled file, output is the final obfuscated worker.js in the root
           npx javascript-obfuscator dist/worker.raw.js --output worker.js \
-            # --- Obfuscation Options (Keep or adjust as needed) ---
             --compact true \
             --control-flow-flattening true \
             --control-flow-flattening-threshold 0.75 \
             --dead-code-injection true \
             --dead-code-injection-threshold 0.4 \
+            --debug-protection false \
+            --debug-protection-interval 0 \
+            --disable-console-output false \
             --identifier-names-generator hexadecimal \
+            --log false \
+            --numbers-to-expressions true \
+            --rename-globals false \
+            --self-defending false \
+            --simplify true \
+            --split-strings false \
             --string-array true \
+            --string-array-calls-transform true \
             --string-array-encoding 'rc4' \
+            --string-array-index-shift true \
+            --string-array-rotate true \
+            --string-array-shuffle true \
+            --string-array-wrappers-count 1 \
+            --string-array-wrappers-chained-calls true \
+            --string-array-wrappers-parameters-max-count 2 \
+            --string-array-wrappers-type 'variable' \
             --string-array-threshold 0.75 \
             --transform-object-keys true \
             --unicode-escape-sequence true
-            # --- End Obfuscation Options ---
           echo "Obfuscated worker saved to ./worker.js (root)"
           # Also copy the obfuscated file to dist for consistency if desired
           cp worker.js dist/worker.obfuscated.js
