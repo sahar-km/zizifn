@@ -1,0 +1,341 @@
+/* panel/style.css */
+/* Based on the original styles, slightly cleaned up */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --background-primary: #2A2421;
+  --background-secondary: #35302C;
+  --background-tertiary: #413B35;
+  --border-color: #5A4F45;
+  --border-color-hover: #766A5F;
+  --text-primary: #E5DFD6;
+  --text-secondary: #B3A89D;
+  --text-accent: #FFFFFF;
+  --accent-primary: #BE9B7B;
+  --accent-secondary: #D4B595;
+  --accent-tertiary: #8D6E5C;
+  --accent-primary-darker: #8A6F56;
+  --button-text-primary: #2A2421;
+  --button-text-secondary: var(--text-primary);
+  --shadow-color: rgba(0, 0, 0, 0.35);
+  --shadow-color-accent: rgba(190, 155, 123, 0.4);
+  --error-color: #e57373; /* For copy error feedback */
+  --error-border-color: #d32f2f;
+  --border-radius: 8px;
+  --transition-speed: 0.2s;
+  --sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --serif: "Ibarra Real Nova", serif;
+  --monospace: 'Courier New', Courier, monospace; /* Added for pre tags */
+}
+
+body {
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 400; /* Adjusted default weight */
+  font-style: normal;
+  background-color: var(--background-primary);
+  color: var(--text-primary);
+  padding: 24px;
+  line-height: 1.6; /* Slightly increased line-height */
+}
+
+.container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.header h1 {
+  font-weight: 700; /* Adjusted weight */
+  color: var(--text-accent);
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: var(--text-secondary);
+  font-family: var(--sans-serif);
+  font-size: 14px; /* Slightly larger */
+}
+
+.config-card {
+  background: var(--background-secondary);
+  border-radius: var(--border-radius);
+  padding: 24px; /* Increased padding */
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.config-card:hover {
+   border-color: var(--border-color-hover);
+   box-shadow: 0 4px 12px var(--shadow-color); /* Slightly larger shadow */
+}
+
+.config-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-secondary);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.config-content {
+  position: relative;
+  font-family: var(--monospace); /* Use monospace for config */
+  background: var(--background-tertiary);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.config-content pre {
+  overflow-x: auto;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin: 0;
+  white-space: pre-wrap; /* Allow wrapping */
+  word-break: break-all; /* Break long strings */
+}
+
+.attributes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); /* Adjusted minmax */
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.attribute {
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* Increased gap */
+}
+
+.attribute span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: var(--sans-serif); /* Use sans-serif for labels */
+}
+
+.attribute strong {
+  font-family: var(--monospace); /* Use monospace for values */
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  word-break: break-all;
+  background-color: var(--background-tertiary); /* Subtle background for value */
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+/* --- Button Styles --- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px; /* Slightly larger padding */
+  border-radius: var(--border-radius);
+  font-family: var(--sans-serif);
+  font-style: normal;
+  font-size: 14px;
+  font-weight: 600; /* Bolder */
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background-color: var(--background-tertiary);
+  color: var(--button-text-secondary);
+  transition: background-color var(--transition-speed) ease,
+              border-color var(--transition-speed) ease,
+              transform var(--transition-speed) ease,
+              box-shadow var(--transition-speed) ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.button:hover {
+  background-color: #4D453E;
+  border-color: var(--border-color-hover);
+  transform: translateY(-2px); /* Slightly more lift */
+  box-shadow: 0 5px 10px var(--shadow-color);
+}
+
+.button:active {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: none;
+}
+
+.button:focus-visible {
+   outline: 2px solid var(--accent-primary);
+   outline-offset: 2px;
+}
+
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  font-family: var(--sans-serif); /* Consistent font */
+  font-size: 12px;
+  font-weight: 600;
+  background-color: var(--accent-tertiary);
+  color: var(--text-accent);
+  border-color: var(--accent-tertiary); /* Match background */
+}
+
+.copy-btn:hover:not(:disabled) {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary-darker);
+  color: var(--button-text-primary);
+}
+
+/* States for copy button feedback */
+.copy-btn.copied {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary-darker);
+    color: var(--button-text-primary);
+}
+.copy-btn.error {
+    background-color: var(--error-color);
+    border-color: var(--error-border-color);
+    color: var(--text-accent);
+}
+
+
+.client-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 20px; /* Increased margin */
+}
+
+.client-btn {
+   width: 100%;
+   background-color: var(--accent-primary);
+   color: var(--button-text-primary);
+   border-color: var(--accent-primary-darker);
+   position: relative; /* Needed for pulse */
+}
+
+/* Pulse animation for client buttons */
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--shadow-color-accent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(190, 155, 123, 0); /* Use accent shadow color */
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(190, 155, 123, 0);
+  }
+}
+
+.client-btn:hover {
+  animation: pulse 1.5s infinite;
+  background-color: var(--accent-secondary);
+  border-color: var(--accent-primary);
+  transform: translateY(-2px); /* Consistent hover effect */
+  box-shadow: 0 5px 10px var(--shadow-color);
+}
+
+.client-icon {
+  width: 20px; /* Slightly larger */
+  height: 20px;
+  /* background-color: rgba(255, 255, 255, 0.1); Subtle background */
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.client-icon svg {
+   width: 16px; /* Adjusted size */
+   height: 16px;
+   fill: currentColor; /* Inherit color from button text */
+}
+
+.footer {
+  text-align: center;
+  margin-top: 40px; /* Increased margin */
+  padding-top: 20px;
+  padding-bottom: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  border-top: 1px solid var(--border-color); /* Add separator */
+}
+
+.footer p {
+    margin-bottom: 6px; /* Increased spacing */
+    font-family: var(--sans-serif);
+}
+
+/* --- Scrollbar Styles --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background-primary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  border: 2px solid var(--background-primary);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color-hover);
+}
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) var(--background-primary);
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+  body { padding: 16px; }
+  .container { padding: 0 8px; }
+  .header h1 { font-size: 24px; }
+  .header p { font-size: 13px; }
+  .config-card { padding: 16px; }
+  .config-title { font-size: 18px; }
+  .config-content pre { font-size: 12px; }
+  .attributes { grid-template-columns: 1fr; gap: 16px; }
+  .client-buttons { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .button { padding: 8px 14px; font-size: 13px; } /* Adjusted padding */
+  .copy-btn { top: 10px; right: 10px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { border-width: 1px; }
+}
+
+@media (max-width: 480px) {
+  .client-buttons { grid-template-columns: 1fr; } /* Stack buttons */
+  .attributes { grid-template-columns: 1fr; }
+  .attribute strong { font-size: 13px; }
+}
