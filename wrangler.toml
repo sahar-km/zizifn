@@ -1,7 +1,7 @@
 name = "REvil-Z" 
 main = "src/index.js" 
 compatibility_date = "2025-04-20" 
-account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID" 
+account_id = "cf764dd49f39fc7e994f1b0f87685cb2" # "YOUR_CLOUDFLARE_ACCOUNT_ID"
 
 [vars]
 UUID = "10e894da-61b1-4998-ac2b-e9ccb6af9d30"
