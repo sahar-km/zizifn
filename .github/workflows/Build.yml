@@ -23,18 +23,19 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install --only=dev
+        run: |
+          npm install
+          npx install --save-dev wrangler@latest
 
       - name: Build Raw Bundled Worker
         id: build-raw
         run: |
-          npm install --save-dev wrangler@4
           echo "Building raw worker bundle..."
           # Use wrangler build command which is specifically for building
           # It respects the 'main' field in wrangler.toml for entry
           # And outputs to the standard ./dist directory by default
           npx wrangler build 
-          # Wrangler v3 build outputs to dist/_worker.js by default
+          # Wrangler v4 build outputs to dist/_worker.js by default
           # Check if the output exists
           if [ ! -f dist/_worker.js ]; then
               echo "Build output dist/_worker.js not found!"
@@ -101,7 +102,7 @@ jobs:
           commit_user_name: GitHub Actions Bot
           commit_user_email: actions@github.com
           # Ensure it pushes the changes
-          push: true
+          git push: true
 
             # --- Optional Deployment Step ---
       # This step only runs if secrets are available
@@ -119,3 +120,4 @@ jobs:
           # Optional vars for deployment context
           # CF_VAR_UUID: ${{ secrets.UUID || vars.UUID }}
           # CF_VAR_PROXYIP: ${{ secrets.PROXYIP || vars.PROXYIP }}
+        continue-on-error: true
