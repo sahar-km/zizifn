@@ -22,11 +22,20 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install Dependencies
-        run: |
-          npm install
-          npx install --save-dev wrangler@latest
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
+      - name: Install Dependencies
+        run: npm ci
+        
+      - name: Install Wrangler
+        run: npm install --save-dev wrangler@latest
+        
       - name: Build Raw Bundled Worker
         id: build-raw
         run: |
@@ -104,7 +113,7 @@ jobs:
           # Ensure it pushes the changes
           git push: true
 
-            # --- Optional Deployment Step ---
+      # --- Optional Deployment Step ---
       # This step only runs if secrets are available
       - name: Deploy Obfuscated Worker to Cloudflare (Optional)
         if: env.CLOUDFLARE_API_TOKEN != '' 
