@@ -57,8 +57,7 @@ var proxyIP = "DEFAULT_PROXYIP";
 var DEFAULT_UUID = "10e894da-61b1-4998-ac2b-e9ccb6af9d30";
 var DEFAULT_PROXYIP = "turk.radicalization.ir";
 function isValidUUID(uuid) {
-  if (!uuid)
-    return false;
+  if (!uuid) return false;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 }
@@ -76,7 +75,7 @@ function getEnv(env) {
   }
 }
 __name(getEnv, "getEnv");
-var src_default = {
+var index_default = {
   /**
    * Handles incoming requests.
    * @param {import("@cloudflare/workers-types").Request} request
@@ -313,8 +312,7 @@ function createReadableWebSocketStream(webSocketServer, earlyData, log) {
         } else if (message instanceof Blob) {
           log("debug", "Received Blob message, converting to ArrayBuffer.");
           message.arrayBuffer().then((buffer) => {
-            if (!streamCancelled)
-              controller.enqueue(new Uint8Array(buffer));
+            if (!streamCancelled) controller.enqueue(new Uint8Array(buffer));
           }).catch((err) => {
             log("error", "Error converting Blob message to ArrayBuffer:", err);
             controller.error(err);
@@ -404,23 +402,19 @@ function processVlessHeader(chunk, expectedUserID) {
     switch (addressType) {
       case VLESS_ADDR_TYPE.IPV4:
         addressLength = 4;
-        if (currentIndex + addressLength > buffer.byteLength)
-          throw new Error("Insufficient length for IPv4 address");
+        if (currentIndex + addressLength > buffer.byteLength) throw new Error("Insufficient length for IPv4 address");
         addressRemote = buffer.slice(currentIndex, currentIndex + addressLength).join(".");
         break;
       case VLESS_ADDR_TYPE.DOMAIN:
-        if (currentIndex + 1 > buffer.byteLength)
-          throw new Error("Insufficient length for domain length");
+        if (currentIndex + 1 > buffer.byteLength) throw new Error("Insufficient length for domain length");
         addressLength = buffer[currentIndex];
         currentIndex++;
-        if (currentIndex + addressLength > buffer.byteLength)
-          throw new Error("Insufficient length for domain name");
+        if (currentIndex + addressLength > buffer.byteLength) throw new Error("Insufficient length for domain name");
         addressRemote = new TextDecoder().decode(buffer.slice(currentIndex, currentIndex + addressLength));
         break;
       case VLESS_ADDR_TYPE.IPV6:
         addressLength = 16;
-        if (currentIndex + addressLength > buffer.byteLength)
-          throw new Error("Insufficient length for IPv6 address");
+        if (currentIndex + addressLength > buffer.byteLength) throw new Error("Insufficient length for IPv6 address");
         const ipv6Bytes = buffer.slice(currentIndex, currentIndex + addressLength);
         const ipv6Segments = [];
         for (let i = 0; i < 8; i++) {
@@ -608,9 +602,9 @@ async function handleUdpProxy(webSocket, vlessResponseHeader, log) {
      * Writes a chunk of data received from the WebSocket (expected to contain VLESS UDP frames).
      * @param {Uint8Array} chunk Data chunk from WebSocket.
      */
-    write: async (chunk) => {
+    write: /* @__PURE__ */ __name(async (chunk) => {
       await processUdpFrame(chunk);
-    }
+    }, "write")
   };
 }
 __name(handleUdpProxy, "handleUdpProxy");
@@ -717,6 +711,6 @@ function uuidBytesToString(arr, offset = 0) {
 }
 __name(uuidBytesToString, "uuidBytesToString");
 export {
-  src_default as default
+  index_default as default
 };
 //# sourceMappingURL=index.js.map
