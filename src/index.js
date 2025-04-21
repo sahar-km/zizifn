@@ -1,7 +1,8 @@
 // Import static assets as raw text. The ?raw suffix is important.
-import panelTemplateHtml from '../panel/panel.html?raw';
-import panelCss from '../panel/style.css?raw';
-import panelJs from '../panel/script.js?raw';
+// --- ADD PLACEHOLDERS ---
+const panelTemplateHtml_PLACEHOLDER = "__PANEL_HTML_PLACEHOLDER__";
+const panelCss_PLACEHOLDER = "__PANEL_CSS_PLACEHOLDER__";
+const panelJs_PLACEHOLDER = "__PANEL_JS_PLACEHOLDER__";
 
 // Import the connect API for creating outbound TCP sockets.
 // This requires the 'connect' unsafe binding in wrangler.toml.
@@ -831,23 +832,36 @@ async function handleUdpProxy(webSocket, vlessResponseHeader, log) {
  * @param {string} currentProxyIP The active Proxy IP.
  * @returns {string} The full HTML page content.
  */
-function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
-    const protocol = reverseBase64Decode(ENCODED.PROTOCOL); // vless
-    const networkType = reverseBase64Decode(ENCODED.NETWORK); // ws
 
+function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
+    // --- Get the raw content placeholders ---
+    const panelCss = panelCss_PLACEHOLDER;
+    const panelJs = panelJs_PLACEHOLDER;
+    const panelTemplateHtml = panelTemplateHtml_PLACEHOLDER; // Raw body HTML
+
+    // Basic check if placeholders were replaced by the build script
+    if (panelCss.startsWith("__PANEL_") || panelJs.startsWith("__PANEL_") || panelTemplateHtml.startsWith("__PANEL_")) {
+        console.error("ERROR: Panel content placeholders were not replaced during build!");
+        return "<html><body>Internal Server Error: Panel build failed.</body></html>";
+    }
+
+    // --- Prepare the dynamic values (Configs, URLs, etc.) ---
+    const protocol = reverseBase64Decode(ENCODED.PROTOCOL);
+    const networkType = reverseBase64Decode(ENCODED.NETWORK);
     if (!protocol || !networkType) {
-         console.error("Failed to decode protocol or network type constants.");
-         // Handle this error appropriately, maybe return an error page
-         return "<html><body>Error generating configuration: Invalid constants.</body></html>";
+        console.error("Failed to decode protocol or network type constants.");
+        return "<html><body>Error generating configuration: Invalid constants.</body></html>";
     }
 
     const baseUrl = `${protocol}://${currentUserID}@${hostName}:443`;
+
     // Common parameters, ensure hostName is URL-encoded if it contains special chars, though unlikely for a host.
     const commonParams = `encryption=none&host=${encodeURIComponent(hostName)}&type=${networkType}&security=tls&sni=${encodeURIComponent(hostName)}`;
 
     // Config for Sing-Box core clients (e.g., Hiddify, NekoBox, Exclave, Husi, Nekoray)
     // ed=2560 and path=/assets are examples, adjust if needed
     const freedomConfig = `${baseUrl}?path=/assets&encryption=none&security=tls&sni=${encodeURIComponent(hostName)}&fp=chrome&type=ws&host=${encodeURIComponent(hostName)}&alpn=h3#${encodeURIComponent(hostName)}`;
+
     // Config for Xray core clients (e.g., v2rayNG, Mahsa/NikaNG, Streisand, v2rayN pro)
     // path=/api/v8?ed=2560 are examples, adjust if needed
     const dreamConfig = `${baseUrl}?path=/api/v8?ed=2560&${commonParams}&fp=randomized&alpn=h2,http/1.1#${encodeURIComponent(hostName)}`;
@@ -870,13 +884,14 @@ function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
     
     const nekoBoxConverterBase = 'https://sahar-km.github.io/arcane/'; // project source: https://github.com/sahar-km/Arcane
     const nekoBoxImportUrl = `${nekoBoxConverterBase}${btoa(freedomConfig)}`; // Base64 encode the VLESS URL
-    
+
     const hiddifyImportUrl = `hiddify://install-config?url=${freedomConfigEncoded}`;
     const v2rayNGImportUrl = `v2rayng://install-config?url=${dreamConfigEncoded}`;
 
 
-    // Replace placeholders in the HTML template
-    let finalHtml = panelTemplateHtml
+    // --- Process the body HTML (Replace placeholders in the raw body template) ---
+    // Perform ALL replacements on the panelTemplateHtml and store in processedPanelBody
+    let processedPanelBody = panelTemplateHtml // Start with the raw body HTML content
         .replace(/{{PROXY_IP}}/g, currentProxyIP || 'N/A')
         .replace(/{{HOST_NAME}}/g, hostName || 'N/A')
         .replace(/{{USER_ID}}/g, currentUserID)
@@ -893,6 +908,7 @@ function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
         .replace(/{{YEAR}}/g, new Date().getFullYear());
 
     // --- Construct the Full HTML Document ---
+    // Inject the CSS, the *processed* body content, and the JS
     const fullHtml = `
 <!doctype html>
 <html lang="en">
@@ -908,16 +924,17 @@ ${panelCss}
     </style>
 </head>
 <body>
-${panelBodyContent}
+${processedPanelBody} {/* <--- USE processedPanelBody HERE */}
     <script>
 ${panelJs}
     </script>
 </body>
 </html>
-`; // Inject CSS directly into <style> tag, JS into <script>
-    return fullHtml.trim(); // Trim whitespace
+`;
+    return fullHtml.trim();
 }
 
+// ... (Rest of your code: export default, handleWebSocketRequest, etc.) ...
 
 // --- Helper Functions ---
 
