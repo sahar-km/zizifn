@@ -111,22 +111,19 @@ jobs:
           commit_user_name: GitHub Actions Bot
           commit_user_email: actions@github.com
           # Ensure it pushes the changes
-          git push: true
+          push: true
+          branch: main
 
       # --- Optional Deployment Step ---
-      # This step only runs if secrets are available
       - name: Deploy Obfuscated Worker to Cloudflare (Optional)
         if: env.CLOUDFLARE_API_TOKEN != '' 
         run: |
-          echo "Deploying pre-built, obfuscated worker (./worker.js) to Cloudflare..."
-          # Deploy the specific obfuscated file
-          # Add --format modules to tell Wrangler it's pre-built ES Module code
-          npx wrangler deploy ./worker.js --format modules --name ${{ vars.WORKER_NAME || 'revil-zfn' }} # Use your worker name or variable
+          echo "Deploying pre-built, obfuscated worker (./worker.js) using --no-bundle flag..."
+          # Use --no-bundle to tell Wrangler to deploy the file as-is without building
+          npx wrangler deploy ./worker.js --no-bundle --name ${{ vars.WORKER_NAME || 'revil-zfn' }} 
         env:
-          # Use the standard environment variable name
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Optional vars for deployment context
+          # Optional vars
           # CF_VAR_UUID: ${{ secrets.UUID || vars.UUID }}
           # CF_VAR_PROXYIP: ${{ secrets.PROXYIP || vars.PROXYIP }}
-        continue-on-error: true
