@@ -3,21 +3,21 @@
   "version": "1.2.0",
   "description": "Cloudflare Worker for VLESS proxy with obfuscation and generated files",
   "private": true,
-  "main": "src/index.js", 
+  "main": "src/index.js",
   "scripts": {
     "dev": "wrangler dev src/index.js",
-    "prepare-build": "node ./scripts/prepare-build.js", 
-    "build:raw": "npm run prepare-build && wrangler deploy --dry-run --outdir dist src/index.built.js && mv dist/_worker.js dist/worker.raw.js", 
-    "obfuscate": "npm run build:raw && npx javascript-obfuscator dist/worker.raw.js --output _worker.js && cp _worker.js dist/worker.obfuscated.js", 
-    "build": "npm run obfuscate", 
-    "deploy:obfuscated": "npm run build && wrangler deploy ./_worker.js --no-bundle", 
-    "deploy:raw": "npm run build:raw && wrangler deploy dist/worker.raw.js --no-bundle", 
-    "deploy": "wrangler deploy src/index.js" 
+    "prepare-build": "node ./scripts/prepare-build.js",
+    "build:raw": "npm run prepare-build && wrangler deploy --dry-run --outfile dist/worker.raw.js src/index.built.js",
+    "obfuscate": "npm run build:raw && npx javascript-obfuscator dist/worker.raw.js --output _worker.js && cp _worker.js dist/worker.obfuscated.js",
+    "build": "npm run obfuscate",
+    "deploy:obfuscated": "npm run build && wrangler deploy ./_worker.js --no-bundle",
+    "deploy:raw": "npm run build:raw && wrangler deploy dist/worker.raw.js --no-bundle",
+    "deploy": "wrangler deploy src/index.js"
   },
-  "author": "NiREvil",
+  "author": "REvil",
   "license": "MIT",
   "devDependencies": {
     "javascript-obfuscator": "^4.1.0",
-    "wrangler": "^3.0.0" 
+    "wrangler": "^3.0.0"
   }
 }
