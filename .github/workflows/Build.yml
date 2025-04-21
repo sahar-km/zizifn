@@ -31,96 +31,35 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Install Dependencies
-        run: npm install
-        
-      - name: Install Wrangler
-        run: npm install --save-dev wrangler@latest
-        
-      - name: Build Raw Bundled Worker
-        id: build-raw
+        run: npm install --only=dev 
+
+      # The 'npm run build' script now handles prepare, build:raw, and obfuscate
+      - name: Build Raw and Obfuscated Worker Files
+        run: npm run build # This runs prepare-build, build:raw, and obfuscate steps from package.json
+
+      - name: Verify Built Files
         run: |
-          echo "Building raw worker bundle..."
-          # Use wrangler build command which is specifically for building
-          # It respects the 'main' field in wrangler.toml for entry
-          # And outputs to the standard ./dist directory by default
-          npx wrangler build 
-          # Wrangler v4 build outputs to dist/_worker.js by default
-          # Check if the output exists
-          if [ ! -f dist/_worker.js ]; then
-              echo "Build output dist/_worker.js not found!"
-              # Try the older default if the above fails
-              if [ -f dist/index.js ]; then
-                  echo "Found dist/index.js instead, renaming..."
-                  mv dist/index.js dist/_worker.js
-              else
-                  echo "No suitable build output found in dist/"
-                  ls -la dist/ # List directory contents for debugging
-                  exit 1
-              fi
-          fi
-          # Rename the raw bundled file for clarity before committing
-          mv dist/_worker.js dist/worker.raw.js
-          echo "Raw bundled worker saved to dist/worker.raw.js"
-
-      - name: Obfuscate Bundled Worker
-        id: obfuscate
-        run: |
-          echo "Obfuscating dist/worker.raw.js..."
-          # Input is the raw bundled file, output is the final obfuscated worker.js in the root
-          npx javascript-obfuscator dist/worker.raw.js --output worker.js \
-            --compact true \
-            --control-flow-flattening true \
-            --control-flow-flattening-threshold 0.75 \
-            --dead-code-injection true \
-            --dead-code-injection-threshold 0.4 \
-            --debug-protection false \
-            --debug-protection-interval 0 \
-            --disable-console-output false \
-            --identifier-names-generator hexadecimal \
-            --log false \
-            --numbers-to-expressions true \
-            --rename-globals false \
-            --self-defending false \
-            --simplify true \
-            --split-strings false \
-            --string-array true \
-            --string-array-calls-transform true \
-            --string-array-encoding 'rc4' \
-            --string-array-index-shift true \
-            --string-array-rotate true \
-            --string-array-shuffle true \
-            --string-array-wrappers-count 1 \
-            --string-array-wrappers-chained-calls true \
-            --string-array-wrappers-parameters-max-count 2 \
-            --string-array-wrappers-type 'variable' \
-            --string-array-threshold 0.75 \
-            --transform-object-keys true \
-            --unicode-escape-sequence true
-          echo "Obfuscated worker saved to ./worker.js (root)"
-          # Also copy the obfuscated file to dist for consistency if desired
-          cp worker.js dist/worker.obfuscated.js
-          echo "Obfuscated worker also copied to dist/worker.obfuscated.js"
-
-
+          ls -l dist/ # Check raw file exists
+          ls -l _worker.js # Check obfuscated file exists in root
+          echo "Build files generated."
+          
       - name: Commit Built Files
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: Build worker.js (obfuscated) and dist/worker.raw.js [skip ci]"
-          # Commit both the obfuscated file in root and the raw file in dist
-          file_pattern: "worker.js dist/worker.raw.js dist/worker.obfuscated.js"
+          commit_message: "chore: Build _worker.js (obfuscated) and dist files [skip ci]"
+          # Commit the root _worker.js and the dist directory contents
+          file_pattern: "_worker.js dist/" 
           commit_user_name: GitHub Actions Bot
           commit_user_email: actions@github.com
-          # Ensure it pushes the changes
           push: true
-          branch: main
 
       # --- Optional Deployment Step ---
       - name: Deploy Obfuscated Worker to Cloudflare (Optional)
         if: env.CLOUDFLARE_API_TOKEN != '' 
         run: |
-          echo "Deploying pre-built, obfuscated worker (./worker.js) using --no-bundle flag..."
-          # Use --no-bundle to tell Wrangler to deploy the file as-is without building
-          npx wrangler deploy ./worker.js --no-bundle --name ${{ vars.WORKER_NAME || 'revil-zfn' }} 
+          echo "Deploying pre-built, obfuscated worker (./_worker.js) using --no-bundle flag..."
+          # Deploy the obfuscated file from the root directory (_worker.js)
+          npx wrangler deploy ./_worker.js --no-bundle --name ${{ vars.WORKER_NAME || 'revil-zfn' }} 
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
