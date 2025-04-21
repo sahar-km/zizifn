@@ -2,10 +2,10 @@ var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
 // src/index.js
-import panelTemplateHtml from "./c668bc5a9ce9f06e35c03efdff137a50b4787eeb-panel.html?raw";
-import panelCss from "./e63217ce30b4461b1f718e731fca17378731907c-style.css?raw";
-import panelJs from "./f02a93f95ae0db5e4f1797a7b7e92bc8b4183974-script.js?raw";
 import { connect } from "cloudflare:sockets";
+var panelTemplateHtml_PLACEHOLDER = "__PANEL_HTML_PLACEHOLDER__";
+var panelCss_PLACEHOLDER = "__PANEL_CSS_PLACEHOLDER__";
+var panelJs_PLACEHOLDER = "__PANEL_JS_PLACEHOLDER__";
 var VLESS_VERSION = 0;
 var VLESS_CMD = {
   TCP: 1,
@@ -609,6 +609,13 @@ async function handleUdpProxy(webSocket, vlessResponseHeader, log) {
 }
 __name(handleUdpProxy, "handleUdpProxy");
 function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
+  const panelCss = panelCss_PLACEHOLDER;
+  const panelJs = panelJs_PLACEHOLDER;
+  const panelTemplateHtml = panelTemplateHtml_PLACEHOLDER;
+  if (panelCss.startsWith("__PANEL_") || panelJs.startsWith("__PANEL_") || panelTemplateHtml.startsWith("__PANEL_")) {
+    console.error("ERROR: Panel content placeholders were not replaced during build!");
+    return "<html><body>Internal Server Error: Panel build failed.</body></html>";
+  }
   const protocol = reverseBase64Decode(ENCODED.PROTOCOL);
   const networkType = reverseBase64Decode(ENCODED.NETWORK);
   if (!protocol || !networkType) {
@@ -637,7 +644,7 @@ function generateConfigPanel(currentUserID, hostName, currentProxyIP) {
   const nekoBoxImportUrl = `${nekoBoxConverterBase}${btoa(freedomConfig)}`;
   const hiddifyImportUrl = `hiddify://install-config?url=${freedomConfigEncoded}`;
   const v2rayNGImportUrl = `v2rayng://install-config?url=${dreamConfigEncoded}`;
-  let finalHtml = panelTemplateHtml.replace(/{{PROXY_IP}}/g, currentProxyIP || "N/A").replace(/{{HOST_NAME}}/g, hostName || "N/A").replace(/{{USER_ID}}/g, currentUserID).replace(/{{DREAM_CONFIG}}/g, dreamConfig).replace(/{{FREEDOM_CONFIG}}/g, freedomConfig).replace(/'{{DREAM_CONFIG_RAW}}'/g, `'${dreamConfig.replace(/'/g, "\\'")}'`).replace(/'{{FREEDOM_CONFIG_RAW}}'/g, `'${freedomConfig.replace(/'/g, "\\'")}'`).replace(/{{HIDDIFY_URL}}/g, hiddifyImportUrl).replace(/{{V2RAYNG_URL}}/g, v2rayNGImportUrl).replace(/{{CLASH_META_URL}}/g, clashMetaFullUrl).replace(/{{NEKOBOX_URL}}/g, nekoBoxImportUrl).replace(/{{YEAR}}/g, (/* @__PURE__ */ new Date()).getFullYear());
+  let processedPanelBody = panelTemplateHtml.replace(/{{PROXY_IP}}/g, currentProxyIP || "N/A").replace(/{{HOST_NAME}}/g, hostName || "N/A").replace(/{{USER_ID}}/g, currentUserID).replace(/{{DREAM_CONFIG}}/g, dreamConfig).replace(/{{FREEDOM_CONFIG}}/g, freedomConfig).replace(/'{{DREAM_CONFIG_RAW}}'/g, `'${dreamConfig.replace(/'/g, "\\'")}'`).replace(/'{{FREEDOM_CONFIG_RAW}}'/g, `'${freedomConfig.replace(/'/g, "\\'")}'`).replace(/{{HIDDIFY_URL}}/g, hiddifyImportUrl).replace(/{{V2RAYNG_URL}}/g, v2rayNGImportUrl).replace(/{{CLASH_META_URL}}/g, clashMetaFullUrl).replace(/{{NEKOBOX_URL}}/g, nekoBoxImportUrl).replace(/{{YEAR}}/g, (/* @__PURE__ */ new Date()).getFullYear());
   const fullHtml = `
 <!doctype html>
 <html lang="en">
@@ -653,7 +660,7 @@ ${panelCss}
     </style>
 </head>
 <body>
-${panelBodyContent}
+${processedPanelBody} {/* <--- USE processedPanelBody HERE */}
     <script>
 ${panelJs}
     <\/script>
