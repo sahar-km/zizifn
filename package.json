@@ -1,25 +1,25 @@
 {
   "name": "cloudflare-vless-worker",
-  "version": "1.2.0", // Increment version
+  "version": "1.2.0",
   "description": "Cloudflare Worker for VLESS proxy with obfuscation and generated files",
   "private": true,
-  "main": "src/index.js", // Still points to the original source
+  "main": "src/index.js", 
   "scripts": {
-    "dev": "wrangler dev src/index.js", // Point dev to original source
+    "dev": "wrangler dev src/index.js",
     
-    "prepare-build": "node ./scripts/prepare-build.js", // New script to inject content
+    "prepare-build": "node ./scripts/prepare-build.js",
     
-    "build:raw": "npm run prepare-build && wrangler build src/index.built.js --outdir dist --name worker-raw && mv dist/_worker.js dist/worker.raw.js", // Build from prepared file
+    "build:raw": "npm run prepare-build && wrangler build src/index.built.js --outdir dist --name worker-raw && mv dist/_worker.js dist/worker.raw.js",
     
-    "obfuscate": "npm run build:raw && npx javascript-obfuscator dist/worker.raw.js --output _worker.js && cp _worker.js dist/worker.obfuscated.js", // Obfuscate raw bundle, output to root _worker.js
+    "obfuscate": "npm run build:raw && npx javascript-obfuscator dist/worker.raw.js --output _worker.js && cp _worker.js dist/worker.obfuscated.js",
     
-    "build": "npm run obfuscate", // Default build now prepares, builds raw, obfuscates
+    "build": "npm run obfuscate",
 
-    "deploy:obfuscated": "npm run build && wrangler deploy ./_worker.js --no-bundle", // Deploy obfuscated from root
+    "deploy:obfuscated": "npm run build && wrangler deploy ./_worker.js --no-bundle",
     
-    "deploy:raw": "npm run build:raw && wrangler deploy dist/worker.raw.js --no-bundle", // Deploy raw bundle
+    "deploy:raw": "npm run build:raw && wrangler deploy dist/worker.raw.js --no-bundle",
     
-    "deploy": "wrangler deploy src/index.js" // Deploy directly from original source
+    "deploy": "wrangler deploy src/index.js"
   },
   "author": "NiREvil",
   "license": "MIT",
