@@ -1,256 +1,360 @@
 // @ts-ignore
 import { connect } from 'cloudflare:sockets';
 
+// =================================================================================
+// User Configuration and Constants
+// =================================================================================
+
 /**
- * User configuration and settings
+ * Default User ID.
  * To generate your own UUID: https://www.uuidgenerator.net/
- * Or: [Windows] Press "Win + R", input cmd and run: Powershell -NoExit -Command "[guid]::NewGuid()"
  */
-let userID = 'd342d11e-d424-4583-b36e-524ab1f0afa4';
+const DEFAULT_USER_ID = 'd342d11e-d424-4583-b36e-524ab1f0afa4';
 
 /**
- * Array of proxy server addresses with ports
- * // to find proxyIP: https://github.com/NiREvil/vless/blob/main/sub/ProxyIP.md
- * Format: ['hostname:port', 'hostname:port', 'hostname:port']
- * Format: ['ip:port', 'ip:port', 'ip:port']
+ * Default proxy server addresses with ports.
+ * These are used if no PROXYIP is set in environment variables or URL parameters.
  */
-const proxyIPs = ['nima.nscl.ir:443'];
-
-// Randomly select a proxy server from the pool
-let proxyIP = proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
-let proxyPort = proxyIP.includes(':') ? proxyIP.split(':')[1] : '443';
+const DEFAULT_PROXY_IPS = ['nima.nscl.ir:443'];
 
 /**
- * SOCKS5 proxy configuration
- * Format: 'username:password@host:port' or 'host:port'
+ * Global constants to avoid "magic strings" and "magic numbers".
  */
-let socks5Address = '';
+const CONSTANTS = {
+    // VLESS protocol related constants (decoded from base64)
+    VLESS_PROTOCOL: "vless",
+    AT_SYMBOL: "@",
+    CUSTOM_SUFFIX: "diana",
 
-/**
- * SOCKS5 relay mode
- * When true: All traffic is proxied through SOCKS5
- * When false: Only Cloudflare IPs use SOCKS5
- */
-let socks5Relay = false;
+    // Subscription generation constants
+    HTTP_PORTS: new Set([80]),
+    HTTPS_PORTS: new Set([443]),
+    URL_ED_PARAM: 'ed=2560',
 
-// Scamalytics API Configuration
-let SCAMALYTICS_API_BASE_URL = "https://api11.scamalytics.com/v3/";
-let DOH_ENDPOINT = "https://1.1.1.1/dns-query";
+    // Protocol header processing offsets
+    PROTOCOL_OFFSETS: {
+        VERSION: 0,
+        UUID: 1,
+        OPT_LENGTH: 17,
+        COMMAND: 18,
+        PORT: 19, // Relative to command
+        ADDR_TYPE: 21, // Relative to command
+        ADDR_LEN: 22, // Relative to command (for domain type)
+        ADDR_VAL: 22 // Relative to command
+    },
 
-// Obfuscation helper placeholders (can be used to hide sensitive keywords in-source)
-const TK_B64 = {
-  vless: "dmxlc3M=", // vless
-  ws: "d3M=",
-  type: "dHlwZQ==",
-  protocol: "cHJvdG9jb2w=",
-  network: "bmV0d29yaw==",
-  host: "aG9zdA==",
-  sni: "c25p",
-  tls: "dGxz",
-  path: "cGF0aA==",
-  encryption: "ZW5jcnlwdGlvbg==",
-  none: "bm9uZQ=="
+    // WebSocket ready states
+    WS_READY_STATE_OPEN: 1,
+    WS_READY_STATE_CLOSING: 2,
 };
-const TK = {};
-for (const k in TK_B64) TK[k] = (typeof atob === "function") ? atob(TK_B64[k]) : TK_B64[k];
 
 
-if (!isValidUUID(userID)) {
-	throw new Error('uuid is not valid');
+// =================================================================================
+// Main Worker Logic
+// =================================================================================
+
+export default {
+    async fetch(request, env, _ctx) {
+        try {
+            // 1. Create a final configuration object for this specific request.
+            // This object combines defaults, environment variables, and URL parameters,
+            // making the source of configuration clear and avoiding global state modification.
+            const config = createRequestConfig(request, env);
+
+            const url = new URL(request.url);
+
+            // 2. Handle non-WebSocket requests (HTTP GET requests)
+            if (request.headers.get('Upgrade') !== 'websocket') {
+                return handleHttpRequest(request, config);
+            }
+
+            // 3. Handle WebSocket requests
+            return await handleWebSocketRequest(request, config);
+
+        } catch (err) {
+            // @ts-ignore
+            return new Response(err.toString(), { status: 500 });
+        }
+    },
+};
+
+/**
+ * Handles all incoming HTTP (non-WebSocket) requests.
+ * @param {Request} request The incoming request object.
+ * @param {object} config The configuration object for this request.
+ * @returns {Promise<Response>} A Response object.
+ */
+function handleHttpRequest(request, config) {
+    const { url, userID, host, proxyIP, proxyPort } = config;
+    const { pathname } = url;
+
+    // Health check and info endpoint
+    if (pathname === '/probe') {
+        const cf = request.cf || {};
+        const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "";
+        return new Response(JSON.stringify({
+            ip,
+            asn: cf.asn || "",
+            isp: cf.asOrganization || cf.asnOrganization || "",
+            city: cf.city || "",
+            country: cf.country || "",
+            colo: cf.colo || "",
+        }, null, 2), {
+            headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
+        });
+    }
+
+    // Scamalytics lookup endpoint
+    if (pathname === "/scamalytics-lookup") {
+        const ipToLookup = url.searchParams.get("ip");
+        if (!ipToLookup) {
+            return new Response("Missing IP parameter", { status: 400 });
+        }
+        return fetchScamalyticsData(ipToLookup, config.scamalytics);
+    }
+
+    // Check if the path matches a valid user ID pattern
+    const matchingUserID = findMatchingUserID(pathname, userID);
+
+    if (matchingUserID) {
+        // Main configuration page
+        if (pathname === `/${matchingUserID}`) {
+            const content = getBeautifulConfig(matchingUserID, host, `${proxyIP}:${proxyPort}`);
+            return new Response(content, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+        }
+        // Standard subscription link
+        if (pathname === `/sub/${matchingUserID}`) {
+            const proxyAddresses = config.env.PROXYIP ? config.env.PROXYIP.split(',').map(addr => addr.trim()) : [`${proxyIP}:${proxyPort}`];
+            const content = GenSub(matchingUserID, host, proxyAddresses);
+            return new Response(content, { status: 200, headers: { "Content-Type": "text/plain;charset=utf-8" } });
+        }
+        // Clean IP subscription link
+        if (pathname === `/ipsub/${matchingUserID}`) {
+            return generateIpSubscription(matchingUserID, host);
+        }
+    }
+
+    // Fallback to a helpful message if no other route matches
+    const fallbackHtml = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Worker Instructions</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1a1a1a; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
+            .container { text-align: left; padding: 2rem; border-radius: 8px; background-color: #2a2a2a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); max-width: 700px; width: 100%; }
+            h1 { text-align: center; color: #80bfff; margin-top: 0; }
+            h2 { text-align: center; color: #57a6ff; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 1px solid #444; padding-bottom: 0.5rem; }
+            p { font-size: 1rem; line-height: 1.6; margin: 0.8rem 0; }
+            code { display: block; background-color: #333; padding: 0.8rem; border-radius: 4px; font-family: "Courier New", Courier, monospace; font-size: 0.9rem; word-break: break-all; margin-top: 0.5rem; color: #a5d6ff; }
+            strong { color: #ffffff; }
+            hr { border: none; height: 1px; background-color: #444; margin: 1.5rem 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>How to Use This Worker</h1>
+            <p>Please provide your User ID (UUID) in the URL to access the endpoints. Replace <code>${config.userID.split(',')[0]}</code> with your own UUID.</p>
+
+            <hr>
+
+            <p><strong>1. Main Configuration Page</strong><br>View individual configs and network info.</p>
+            <code>https://${url.hostname}/${config.userID.split(',')[0]}</code>
+
+            <p><strong>2. Standard Subscription Link</strong><br>A general-purpose subscription with multiple domains.</p>
+            <code>https://${url.hostname}/sub/${config.userID.split(',')[0]}</code>
+
+            <p><strong>3. Clean IP Subscription Link</strong><br>A subscription using a curated list of clean Cloudflare IPs.</p>
+            <code>https://${url.hostname}/ipsub/${config.userID.split(',')[0]}</code>
+
+            <h2>Optional Environment Variables</h2>
+            <p>You can set these in your Cloudflare Worker's dashboard (Settings > Variables) to override the default configuration.</p>
+
+            <p><strong>UUID</strong><br>Sets the user ID(s). Separate multiple UUIDs with a comma.</p>
+            <code>d342d11e-d424-4583-b36e-524ab1f0afa4</code>
+
+            <p><strong>PROXYIP</strong><br>Specifies backend proxy IPs/domains. Separate multiple with a comma.</p>
+            <code>cdn.cloudflare.com:8443,104.16.132.229:443</code>
+
+            <p><strong>SOCKS5</strong><br>Routes traffic through a SOCKS5 proxy (advanced).</p>
+            <code>user:pass@1.2.3.4:1080</code>
+
+            <p><strong>SCAMALYTICS_USERNAME</strong><br>Your username for the Scamalytics API service.</p>
+            <code>your_username</code>
+
+            <p><strong>SCAMALYTICS_API_KEY</strong><br>Your API key for the Scamalytics service.</p>
+            <code>your_api_key_here</code>
+        </div>
+    </body>
+    </html>
+    `;
+    return new Response(fallbackHtml, {
+        status: 404,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
 }
 
-let parsedSocks5Address = {};
-let enableSocks = false;
+/**
+ * Handles all incoming WebSocket requests.
+ * @param {Request} request The incoming request object.
+ * @param {object} config The configuration object for this request.
+ * @returns {Promise<Response>} A Response object with WebSocket handlers.
+ */
+async function handleWebSocketRequest(request, config) {
+    const webSocketPair = new WebSocketPair();
+    const [client, webSocket] = Object.values(webSocketPair);
+    webSocket.accept();
+
+    let address = '';
+    let portWithRandomLog = '';
+    const log = (info, event) => {
+        console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
+    };
+
+    const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
+    const readableWebSocketStream = MakeReadableWebSocketStream(webSocket, earlyDataHeader, log);
+
+    let remoteSocketWrapper = {
+        value: null,
+    };
+    let isDns = false;
+
+    readableWebSocketStream.pipeTo(new WritableStream({
+        async write(chunk, controller) {
+            if (isDns) {
+                return; // DNS over TCP is not supported in this version
+            }
+            if (remoteSocketWrapper.value) {
+                const writer = remoteSocketWrapper.value.writable.getWriter();
+                await writer.write(chunk);
+                writer.releaseLock();
+                return;
+            }
+
+            const {
+                hasError,
+                message,
+                addressType,
+                portRemote = 443,
+                addressRemote = '',
+                rawDataIndex,
+                protocolVersion,
+                isUDP,
+            } = ProcessProtocolHeader(chunk, config.userID);
+
+            address = addressRemote;
+            portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? 'udp' : 'tcp'}`;
+
+            if (hasError) {
+                throw new Error(message);
+            }
+
+            if (isUDP) {
+                throw new Error('UDP proxy is not supported.');
+            }
+
+            const protocolResponseHeader = new Uint8Array([protocolVersion[0], 0]);
+            const rawClientData = chunk.slice(rawDataIndex);
+            HandleTCPOutBound(remoteSocketWrapper, addressType, addressRemote, portRemote, rawClientData, webSocket, protocolResponseHeader, log, config);
+        },
+        close() {
+            log(`readableWebSocketStream is closed`);
+        },
+        abort(reason) {
+            log(`readableWebSocketStream is aborted`, JSON.stringify(reason));
+        },
+    })).catch((err) => {
+        log('readableWebSocketStream pipeTo error', err);
+        safeCloseWebSocket(webSocket);
+    });
+
+    return new Response(null, {
+        status: 101,
+        webSocket: client,
+    });
+}
+
+
+// =================================================================================
+// Configuration Handling
+// =================================================================================
 
 /**
- * Main handler for the Cloudflare Worker. Processes incoming requests and routes them appropriately.
- * @param {import("@cloudflare/workers-types").Request} request - The incoming request object
- * @param {Object} env - Environment variables containing configuration
- * @param {string} env.UUID - User ID for authentication
- * @param {string} env.PROXYIP - Proxy server IP address
- * @param {string} env.SOCKS5 - SOCKS5 proxy configuration
- * @param {string} env.SOCKS5_RELAY - SOCKS5 relay mode flag
- * @param {string} env.SCAMALYTICS_USERNAME - Your Scamalytics Username
- * @param {string} env.SCAMALYTICS_API_KEY - Your Scamalytics API Key
- * @returns {Promise<Response>} Response object
+ * Creates a unified configuration object for a single request.
+ * It merges defaults, environment variables, and URL parameters in a specific order of precedence:
+ * URL Parameters > Environment Variables > Defaults.
+ * @param {Request} request The incoming request object.
+ * @param {object} env The environment variables.
+ * @returns {object} A comprehensive configuration object.
  */
-export default {
-	async fetch(request, env, _ctx) {
-		try {
-			const { UUID, PROXYIP, SOCKS5, SOCKS5_RELAY, SCAMALYTICS_USERNAME, SCAMALYTICS_API_KEY, SCAMALYTICS_API_BASE_URL:ENV_SCAMALYTICS_API_BASE_URL, SCAMALYTICS_USERNAME:ENV_SCAMALYTICS_USERNAME, SCAMALYTICS_API_KEY:ENV_SCAMALYTICS_API_KEY, DOH_ENDPOINT:ENV_DOH_ENDPOINT } = env;
+function createRequestConfig(request, env) {
+    const url = new URL(request.url);
 
-			// Allow overriding of endpoints via Worker environment variables
-			if (ENV_SCAMALYTICS_API_BASE_URL) SCAMALYTICS_API_BASE_URL = ENV_SCAMALYTICS_API_BASE_URL;
-			if (ENV_DOH_ENDPOINT) DOH_ENDPOINT = ENV_DOH_ENDPOINT;
-			// If env provides username/api key, prefer those
-			if (ENV_SCAMALYTICS_USERNAME) SCAMALYTICS_USERNAME = ENV_SCAMALYTICS_USERNAME;
-			if (ENV_SCAMALYTICS_API_KEY) SCAMALYTICS_API_KEY = ENV_SCAMALYTICS_API_KEY;
+    // 1. Start with hardcoded defaults
+    let config = {
+        userID: DEFAULT_USER_ID,
+        proxyIPs: DEFAULT_PROXY_IPS,
+        socks5Address: '',
+        socks5Relay: false,
+        scamalytics: {
+            username: "dianaclk01",
+            apiKey: "c57eb62bbde89f00742cb3f92d7127f96132c9cea460f18c08fd5e62530c5604",
+            baseUrl: "https://api11.scamalytics.com/v3/",
+        },
+    };
 
-			const url = new URL(request.url);
+    // 2. Override with environment variables if they exist
+    if (env.UUID) config.userID = env.UUID;
+    if (env.PROXYIP) config.proxyIPs = env.PROXYIP.split(',').map(ip => ip.trim());
+    if (env.SOCKS5) config.socks5Address = env.SOCKS5;
+    if (env.SOCKS5_RELAY) config.socks5Relay = env.SOCKS5_RELAY === 'true';
+    if (env.SCAMALYTICS_USERNAME) config.scamalytics.username = env.SCAMALYTICS_USERNAME;
+    if (env.SCAMALYTICS_API_KEY) config.scamalytics.apiKey = env.SCAMALYTICS_API_KEY;
 
-			// Probe endpoint returning CF edge info - helps fill proxy IP / location / ISP without external calls
-			if (url.pathname === "/probe") {
-				const cf = request.cf || {};
-				const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "";
-				const asn = cf.asn || "";
-				const isp = cf.asOrganization || cf.asnOrganization || "";
-				const city = cf.city || "";
-				const country = cf.country || "";
-				const colo = cf.colo || "";
-				return new Response(JSON.stringify({ ip, asn, isp, city, country, colo, doh: DOH_ENDPOINT, scamalytics_base: SCAMALYTICS_API_BASE_URL }, null, 2), {
-					headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
-				});
-			}
+    // 3. Override with URL parameters for maximum flexibility
+    let urlParams = new URLSearchParams(url.search);
+    const urlPROXYIP = urlParams.get('proxyip');
+    const urlSOCKS5 = urlParams.get('socks5');
+    const urlSOCKS5_RELAY = urlParams.get('socks5_relay');
+    if (urlPROXYIP) config.proxyIPs = urlPROXYIP.split(',').map(ip => ip.trim());
+    if (urlSOCKS5) config.socks5Address = urlSOCKS5;
+    if (urlSOCKS5_RELAY) config.socks5Relay = urlSOCKS5_RELAY === 'true';
 
-			const requestConfig = {
-				userID: UUID || userID,
-				socks5Address: SOCKS5 || socks5Address,
-				socks5Relay: SOCKS5_RELAY === 'true' || socks5Relay,
-				proxyIP: null,
-				proxyPort: null,
-				enableSocks: false,
-				parsedSocks5Address: {}
-			};
+    // 4. Final processing and adding dynamic values
+    if (!isValidUUID(config.userID.split(',')[0])) {
+        throw new Error('UUID is not valid');
+    }
 
-			let urlPROXYIP = url.searchParams.get('proxyip');
-			let urlSOCKS5 = url.searchParams.get('socks5');
-			let urlSOCKS5_RELAY = url.searchParams.get('socks5_relay');
+    const selectedProxy = selectRandomAddress(config.proxyIPs);
+    const [proxyIP, proxyPort = '443'] = selectedProxy.split(':');
+    config.proxyIP = proxyIP;
+    config.proxyPort = proxyPort;
 
-			if (!urlPROXYIP && !urlSOCKS5 && !urlSOCKS5_RELAY) {
-				const encodedParams = parseEncodedQueryParams(url.pathname);
-				urlPROXYIP = urlPROXYIP || encodedParams.proxyip;
-				urlSOCKS5 = urlSOCKS5 || encodedParams.socks5;
-				urlSOCKS5_RELAY = urlSOCKS5_RELAY || encodedParams.socks5_relay;
-			}
+    config.url = url;
+    config.host = url.hostname;
+    config.env = env; // Keep env for direct access if needed
 
-			if (urlPROXYIP) {
-				const proxyPattern = /^([a-zA-Z0-9][-a-zA-Z0-9.]*(\.[a-zA-Z0-9][-a-zA-Z0-9.]*)+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[[0-9a-fA-F:]+\]):\d{1,5}$/;
-				const proxyAddresses = urlPROXYIP.split(',').map(addr => addr.trim());
-				const isValid = proxyAddresses.every(addr => proxyPattern.test(addr));
-				if (!isValid) {
-					console.warn('Invalid proxyip format:', urlPROXYIP);
-					urlPROXYIP = null;
-				}
-			}
+    // Parse SOCKS5 address if provided
+    config.enableSocks = false;
+    if (config.socks5Address) {
+        try {
+            const selectedSocks5 = selectRandomAddress(config.socks5Address);
+            config.parsedSocks5Address = socks5AddressParser(selectedSocks5);
+            config.enableSocks = true;
+        } catch (err) {
+            console.log(`SOCKS5 address parsing error: ${err.toString()}`);
+            config.enableSocks = false;
+        }
+    }
 
-			if (urlSOCKS5) {
-				const socks5Pattern = /^(([^:@]+:[^:@]+@)?[a-zA-Z0-9][-a-zA-Z0-9.]*(\.[a-zA-Z0-9][-a-zA-Z0-9.]*)+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}):\d{1,5}$/;
-				const socks5Addresses = urlSOCKS5.split(',').map(addr => addr.trim());
-				const isValid = socks5Addresses.every(addr => socks5Pattern.test(addr));
-				if (!isValid) {
-					console.warn('Invalid socks5 format:', urlSOCKS5);
-					urlSOCKS5 = null;
-				}
-			}
+    return config;
+}
 
-			requestConfig.socks5Address = urlSOCKS5 || requestConfig.socks5Address;
-			requestConfig.socks5Relay = urlSOCKS5_RELAY === 'true' || requestConfig.socks5Relay;
-			
-			const proxyConfig = handleProxyConfig(urlPROXYIP || PROXYIP);
-			requestConfig.proxyIP = proxyConfig.ip;
-			requestConfig.proxyPort = proxyConfig.port;
-			
-			if (requestConfig.socks5Address) {
-				try {
-					const selectedSocks5 = selectRandomAddress(requestConfig.socks5Address);
-					requestConfig.parsedSocks5Address = socks5AddressParser(selectedSocks5);
-					requestConfig.enableSocks = true;
-				} catch (err) {
-					console.log(err.toString());
-					requestConfig.enableSocks = false;
-				}
-			}
-
-			const userIDs = requestConfig.userID.includes(',') ? requestConfig.userID.split(',').map(id => id.trim()) : [requestConfig.userID];
-			const host = request.headers.get('Host');
-			const requestedPath = url.pathname.substring(1); 
-			const matchingUserID = userIDs.length === 1 ?
-				(requestedPath === userIDs[0] ||
-					requestedPath === `sub/${userIDs[0]}` ||
-					requestedPath === `bestip/${userIDs[0]}` ? userIDs[0] : null) :
-				userIDs.find(id => {
-					const patterns = [id, `sub/${id}`, `bestip/${id}`];
-					return patterns.some(pattern => requestedPath.startsWith(pattern));
-				});
-
-			if (request.headers.get('Upgrade') !== 'websocket') {
-                // Endpoint for Scamalytics lookup
-                if (url.pathname === "/scamalytics-lookup") {
-                    const ipToLookup = url.searchParams.get("ip");
-                    if (!ipToLookup) {
-                        return new Response("Missing IP parameter", { status: 400 });
-                    }
-                    
-                    // Show clients ip risk
-                    const actualScamalyticsUsername = SCAMALYTICS_USERNAME || "dianaclk01";
-                    const actualScamalyticsApiKey = SCAMALYTICS_API_KEY || "c57eb62bbde89f00742cb3f92d7127f96132c9cea460f18c08fd5e62530c5604";
-					
-                    if (!actualScamalyticsUsername || !actualScamalyticsApiKey) {
-                        console.error("Scamalytics credentials not configured in Worker environment variables.");
-                        return new Response("Scamalytics API credentials not configured on server.", { status: 500 });
-                    }
-
-                    const scamalyticsUrl = `${SCAMALYTICS_API_BASE_URL}${actualScamalyticsUsername}/?key=${actualScamalyticsApiKey}&ip=${ipToLookup}`;
-                    
-                    try {
-                        const scamalyticsResponse = await fetch(scamalyticsUrl);
-                        const responseBody = await scamalyticsResponse.json();
-                        
-                        const headers = new Headers({
-                            "Content-Type": "application/json",
-                            "Access-Control-Allow-Origin": "*",
-                            "Access-Control-Allow-Methods": "GET, OPTIONS",
-                            "Access-Control-Allow-Headers": "Content-Type",
-                        });
-
-                        return new Response(JSON.stringify(responseBody), { 
-                            status: scamalyticsResponse.status, 
-                            headers: headers 
-                        });
-                    } catch (apiError) {
-                        console.error("Error fetching from Scamalytics API:", apiError);
-                        return new Response(JSON.stringify({ error: "Failed to fetch from Scamalytics API", details: apiError.message }), { 
-                            status: 502,
-                            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-                        });
-                    }
-                }
-
-				if (url.pathname === '/cf') {
-					return new Response(JSON.stringify(request.cf, null, 4), {
-						status: 200,
-						headers: { "Content-Type": "application/json;charset=utf-8" },
-					});
-				}
-
-				if (matchingUserID) {
-					if (url.pathname === `/${matchingUserID}`) {
-						const content = getBeautifulConfig(matchingUserID, host, `${requestConfig.proxyIP}:${requestConfig.proxyPort}`);
-						return new Response(content, {
-							status: 200,
-							headers: { "Content-Type": "text/html; charset=utf-8" },
-						});
-					} else if (url.pathname === `/sub/${matchingUserID}`) {
-						const proxyAddresses = PROXYIP ? PROXYIP.split(',').map(addr => addr.trim()) : [`${requestConfig.proxyIP}:${requestConfig.proxyPort}`];
-						const content = GenSub(matchingUserID, host, proxyAddresses);
-						return new Response(content, {
-							status: 200,
-							headers: { "Content-Type": "text/plain;charset=utf-8" },
-						});
-					} else if (url.pathname === `/bestip/${matchingUserID}`) {
-						return fetch(`https://bestip.06151953.xyz/auto?host=${host}&uuid=${matchingUserID}&path=/`, { headers: request.headers });
-					}
-				}
-				// Fallback to a default page if no other route matches
-				return new Response("Not Found", { status: 404 });
-			} else {
-				return await ProtocolOverWSHandler(request, requestConfig);
-			}
-		} catch (err) {
-			return new Response(err.toString(), { status: 500 });
-		}
-	},
-};
+// =================================================================================
+// HTML and Subscription Generation
+// =================================================================================
 
 /**
  * Generates the beautiful configuration UI.
@@ -260,15 +364,15 @@ export default {
  * @returns {string} The full HTML for the configuration page.
  */
 function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
-	// Generate he configs
-	const dreamConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=%2Fassets%2FapiDiana%3Fed%3D2560#${hostName}-XRAY`;
-	const freedomConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=firefox&type=ws&host=${hostName}&path=%2F%3Fed%3D2560#&eh=Sec-WebSocket-Protocol&ed=2560#${hostName}-SINGBOX`;
+    const vlessPath = `/?${CONSTANTS.URL_ED_PARAM}`;
+    const dreamConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Dream`;
+    const freedomConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=firefox&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Freedom`;
 
-    // The special URLs for clients are generated
-    const clashMetaFullUrl = `clash://install-config?url=${encodeURIComponent(`https://revil-sub.pages.dev/sub/clash-meta?url=${encodeURIComponent(freedomConfig)}&remote_config=&udp=false&ss_uot=false&show_host=false&forced_ws0rtt=true`)}`;
-    const nekoBoxImportUrl = `https://sahar-km.github.io/arcane/${btoa(freedomConfig)}`;
+    const subUrl = `https://${hostName}/sub/${userID}`;
+    const subUrlEncoded = encodeURIComponent(subUrl);
+    const clashMetaFullUrl = `clash://install-config?url=https://revil-sub.pages.dev/sub/clash-meta?url=${subUrlEncoded}&remote_config=&udp=false&ss_uot=false&show_host=false&forced_ws0rtt=true`;
 
-	let html = `
+  let html = `
 	<!doctype html>
 	<html lang="en">
 	<head>
@@ -277,7 +381,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	  <title>VLESS Proxy Configuration</title>
 	  <link rel="preconnect" href="https://fonts.googleapis.com">
 	  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	  <link href="https://fonts.googleapis.com/css2?family=Ibarra+Real+Nova:ital,wght@0,400..700;1,400..700&family=Fira+Code:wght@300..700&family=Inter:opsz,wght@14..32,100..900&family=Roboto+Mono:wght@100..700&display=swap" rel="stylesheet">
+	  <link href="https.googleapis.com/css2?family=Fira+Code:wght@300..700&display=swap" rel="stylesheet">
 	  <style>
 	    * {
 	      margin: 0;
@@ -331,8 +435,8 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      --status-info: #4f90c4;
 	
 	      --serif: "Aldine 401 BT Web", "Times New Roman", Times, Georgia, ui-serif, serif;
-	      --sans-serif: "Styrene B LC", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, "Noto Color Emoji", sans-serif;
-	      --mono-serif: "Fira Code", "Roboto Mono", Cantarell, Courier Prime, SFMono-Regular, monospace;
+	      --sans-serif: "Styrene B LC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Noto Color Emoji", sans-serif;
+	      --mono-serif: "Fira Code", "Courier New", Courier, monospace;
 	    }
 	
 	    body {
@@ -681,7 +785,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	    .client-btn .button-text {
 	      position: relative;
 	      z-index: 2;
-	      transition: letter-spacing 0.3s ease;
+	      transition: letter-spacing: 0.3s ease;
 	    }
 	
 	    .client-btn:hover .button-text { letter-spacing: 0.5px; }
@@ -798,7 +902,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	    @media (min-width: 1024px) { .container { max-width: 800px; } }
 	  </style>
 	</head>
-	<body data-proxy-ip="{{PROXY_IP}}">
+	<body data-proxy-ip="${proxyIPWithPort}">
 	  <div class="container">
 	    <div class="header">
 	      <h1>VLESS Proxy Configuration</h1>
@@ -881,10 +985,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      <div class="config-title">
 	        <span>Xray Core Clients</span>
 	        <button class="button copy-buttons" onclick="copyToClipboard(this, '{{DREAM_CONFIG}}')">
-	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-	            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-	          </svg>
+	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
 	          Copy
 	        </button>
 	      </div>
@@ -892,11 +993,11 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	        <pre id="xray-config">{{DREAM_CONFIG}}</pre>
 	      </div>
 	      <div class="client-buttons">
-	        <a href="hiddify://install-config?url={{FREEDOM_CONFIG_ENCODED}}" class="button client-btn">
+	        <a href="hiddify://install-config?url={{SUB_URL_ENCODED}}" class="button client-btn">
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg></span>
 	          <span class="button-text">Import to Hiddify</span>
 	        </a>
-	        <a href="v2rayng://install-config?url={{DREAM_CONFIG_ENCODED}}" class="button client-btn">
+	        <a href="v2rayng://install-config?url={{SUB_URL_ENCODED}}" class="button client-btn">
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M12 2L4 5v6c0 5.5 3.5 10.7 8 12.3 4.5-1.6 8-6.8 8-12.3V5l-8-3z" /></svg></span>
 	          <span class="button-text">Import to V2rayNG</span>
 	        </a>
@@ -907,10 +1008,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      <div class="config-title">
 	        <span>Sing-Box Core Clients</span>
 	        <button class="button copy-buttons" onclick="copyToClipboard(this, '{{FREEDOM_CONFIG}}')">
-	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-	            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-	          </svg>
+	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
 	          Copy
 	        </button>
 	      </div>
@@ -922,7 +1020,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg></span>
 	          <span class="button-text">Import to Clash Meta</span>
 	        </a>
-	        <a href="{{NEKOBOX_URL}}" class="button client-btn">
+	        <a href="nekobox://install-config?url={{SUB_URL_ENCODED}}" class="button client-btn">
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M20,8h-3V6c0-1.1-0.9-2-2-2H9C7.9,4,7,4.9,7,6v2H4C2.9,8,2,8.9,2,10v9c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2v-9 C22,8.9,21.1,8,20,8z M9,6h6v2H9V6z M20,19H4v-2h16V19z M20,15H4v-5h3v1c0,0.55,0.45,1,1,1h1.5c0.28,0,0.5-0.22,0.5-0.5v-0.5h4v0.5 c0,0.28,0.22,0.5,0.5,0.5H16c0.55,0,1-0.45,1-1v-1h3V15z" /><circle cx="8.5" cy="13.5" r="1" /><circle cx="15.5" cy="13.5" r="1" /><path d="M12,15.5c-0.55,0-1-0.45-1-1h2C13,15.05,12.55,15.5,12,15.5z" /></svg></span>
 	          <span class="button-text">Import to NekoBox</span>
 	        </a>
@@ -938,18 +1036,10 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	  <script>
 	    function copyToClipboard(button, text) {
 	      const originalHTML = button.innerHTML;
-	
 	      navigator.clipboard.writeText(text).then(() => {
-	        button.innerHTML = \`
-	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-	            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-	          </svg>
-	          Copied!
-	        \`;
+	        button.innerHTML = 'Copied!';
 	        button.classList.add("copied");
 	        button.disabled = true;
-	
 	        setTimeout(() => {
 	          button.innerHTML = originalHTML;
 	          button.classList.remove("copied");
@@ -957,36 +1047,21 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	        }, 1200);
 	      }).catch(err => {
 	        console.error("Failed to copy text: ", err);
-	        const originalHTMLError = button.innerHTML;
-	
-	        button.innerHTML = \`
-	          <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-	            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-	            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-	          </svg>
-	          Error
-	        \`; 
+	        button.innerHTML = 'Error';
 	        button.classList.add("error");
 	        button.disabled = true;
-	
 	        setTimeout(() => {
-	          button.innerHTML = originalHTMLError;
+	          button.innerHTML = originalHTML;
 	          button.classList.remove("error");
 	          button.disabled = false;
 	        }, 1500);
 	      });
 	    }
 	
-	    /**
-	     * Fetches the client's public IP address.
-	     * @returns {Promise<string|null>} IP address string or null on error.
-	     */
 	    async function fetchClientPublicIP() {
 	      try {
 	        const response = await fetch('https://api.ipify.org?format=json');
-	        if (!response.ok) {
-	          throw new Error(\`HTTP error! status: \${response.status}\`);
-	        }
+	        if (!response.ok) throw new Error(\`HTTP error! status: \${response.status}\`);
 	        const data = await response.json();
 	        return data.ip;
 	      } catch (error) {
@@ -995,40 +1070,22 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      }
 	    }
 	    
-	    /**
-	     * Fetches client IP information from Scamalytics via the Cloudflare Worker.
-	     * @param {string} clientIp - The client's IP address.
-	     * @returns {Promise<object|null>} IP data or null on error.
-	     */
 	    async function fetchScamalyticsClientInfo(clientIp) {
 	      if (!clientIp) return null;
 	      try {
 	        const workerLookupUrl = \`/scamalytics-lookup?ip=\${encodeURIComponent(clientIp)}\`; 
 	        const response = await fetch(workerLookupUrl);
-	    
 	        if (!response.ok) {
-	          let errorDetail = \`Worker request failed! status: \${response.status}\`;
+	          let errorDetail = \`Worker request failed: \${response.status}\`;
 	          try {
-	            const errorData = await response.json(); 
-	             if (errorData && errorData.error) {
-	                errorDetail = errorData.error;
-	                if(errorData.details) errorDetail += \` Details: \${errorData.details}\`;
-	            } else if (errorData && errorData.scamalytics && errorData.scamalytics.error) {
-	                 errorDetail = errorData.scamalytics.error;
-	            } else if (response.statusText) {
-	                errorDetail += \` - \${response.statusText}\`;
-	            }
-	          } catch (e) { 
-	            errorDetail += \` - \${await response.text()}\`;
-	          }
+	            const errorData = await response.json();
+	            errorDetail = errorData.error || errorData.scamalytics?.error || response.statusText;
+	          } catch (e) { /* Ignore parsing error */ }
 	          throw new Error(errorDetail);
 	        }
 	        const data = await response.json();
-	        if (data.scamalytics && data.scamalytics.status === 'error') {
+	        if (data.scamalytics?.status === 'error') {
 	            throw new Error(data.scamalytics.error || 'Scamalytics API error via Worker');
-	        }
-	        if (data.error && !data.scamalytics) {
-	            throw new Error(data.error);
 	        }
 	        return data;
 	      } catch (error) {
@@ -1037,21 +1094,15 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      }
 	    }
 	    
-	    /**
-	     * Updates the display for client IP information using data from Scamalytics.
-	     * @param {object|null} data - IP data from Scamalytics.
-	     */
 	    function updateScamalyticsClientDisplay(data) {
 	      const prefix = 'client';
-	      // Check for a successful Scamalytics response structure
-	      if (!data || !data.scamalytics || data.scamalytics.status !== 'ok') {
-	        showError(prefix, (data && data.scamalytics && data.scamalytics.error) || 'Could not load client data from Scamalytics');
+	      if (!data?.scamalytics || data.scamalytics.status !== 'ok') {
+	        showError(prefix, data?.scamalytics?.error || 'Could not load client data from Scamalytics');
 	        return;
 	      }
 	    
 	      const sa = data.scamalytics;
 	      const dbip = data.external_datasources?.dbip;
-	    
 	      const elements = {
 	        ip: document.getElementById(\`\${prefix}-ip\`),
 	        location: document.getElementById(\`\${prefix}-location\`),
@@ -1060,29 +1111,15 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      };
 	    
 	      if (elements.ip) elements.ip.textContent = sa.ip || "N/A";
-	    
+	      if (elements.isp) elements.isp.textContent = sa.scamalytics_isp || dbip?.isp_name || "N/A";
+
 	      if (elements.location) {
 	        const city = dbip?.ip_city || ''; 
 	        const countryName = dbip?.ip_country_name || ''; 
-	        const countryCode = dbip?.ip_country_code ? dbip.ip_country_code.toLowerCase() : ''; 
-	        let locationString = 'N/A';
-	        let flagElementHtml = '';
-	    
-	        if (countryCode) {
-	          flagElementHtml = \`<img src="https://flagcdn.com/w20/\${countryCode}.png" srcset="https://flagcdn.com/w40/\${countryCode}.png 2x" alt="\${dbip.ip_country_code || 'flag'}" class="country-flag"> \`;
-	        }
-	    
-	        let textPart = '';
-	        if (city && countryName) textPart = \`\${city}, \${countryName}\`;
-	        else if (countryName) textPart = countryName;
-	        else if (city) textPart = city;
-	    
-	        if (flagElementHtml.trim() || textPart.trim()) locationString = \`\${flagElementHtml}\${textPart}\`.trim();
-	        elements.location.innerHTML = locationString || "N/A";
-	      }
-	    
-	      if (elements.isp) {
-	          elements.isp.textContent = sa.scamalytics_isp || dbip?.isp_name || "N/A"; 
+	        const countryCode = dbip?.ip_country_code?.toLowerCase() || '';
+	        let flagHtml = countryCode ? \`<img src="https://flagcdn.com/w20/\${countryCode}.png" srcset="https://flagcdn.com/w40/\${countryCode}.png 2x" alt="\${dbip.ip_country_code}" class="country-flag"> \` : '';
+	        let textPart = [city, countryName].filter(Boolean).join(', ');
+	        elements.location.innerHTML = (flagHtml || textPart) ? \`\${flagHtml}\${textPart}\`.trim() : "N/A";
 	      }
 	    
 	      if (elements.proxy) { 
@@ -1090,214 +1127,138 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	        const risk = sa.scamalytics_risk;   
 	        let riskText = "Unknown";
 	        let badgeClass = "badge-neutral";
-	    
-	        if (risk !== undefined && score !== undefined && risk !== null && score !== null) {
-	            riskText = \`\${score} - \${risk.charAt(0).toUpperCase() + risk.slice(1)}\`;
-	            switch (risk.toLowerCase()) { 
-	                case "low": badgeClass = "badge-yes"; break;
-	                case "medium": badgeClass = "badge-warning"; break;
-	                case "high": badgeClass = "badge-no"; break;
-	                case "very high": badgeClass = "badge-no"; break; 
-	                default: 
-	                    badgeClass = "badge-neutral";
-	                    riskText = \`Score \${score} - \${risk || 'Status Unknown'}\`;
-	                    break;
-	            }
-	        } else if (score !== undefined && score !== null) {
-	            riskText = \`Score \${score} - N/A\`; 
-	        } else if (risk) {
-	            riskText = risk.charAt(0).toUpperCase() + risk.slice(1);
-	             switch (risk.toLowerCase()) {
+	        if (typeof score !== 'undefined' && score !== null) {
+	            riskText = \`Score \${score} - \${risk ? risk.charAt(0).toUpperCase() + risk.slice(1) : 'N/A'}\`;
+	            switch (risk?.toLowerCase()) {
 	                case "low": badgeClass = "badge-yes"; break;
 	                case "medium": badgeClass = "badge-warning"; break;
 	                case "high": case "very high": badgeClass = "badge-no"; break;
-	                default: badgeClass = "badge-neutral"; riskText="Status Unknown"; break;
 	            }
 	        }
 	        elements.proxy.innerHTML = \`<span class="badge \${badgeClass}">\${riskText}</span>\`;
 	      }
 	    }
 	    
-	    /**
-	     * Updates the display for Proxy Server IP information using data from ip-api.io
-	     * @param {object | null} geo - IP data from ip-api.io.
-	     * @param {string} prefix - 'proxy'.
-	     * @param {string | null} originalHost - The original hostname or IP of the proxy.
-	     */
-	    function updateIpApiIoDisplay(geo, prefix, originalHost) {
-	      const hostElement = document.getElementById(\`\${prefix}-host\`);
-	      if (hostElement) {
-	        hostElement.textContent = originalHost || "N/A";
-	      }
+        async function fetchProxyGeoInfo(ip) {
+            if (!ip) return null;
+            try {
+                const response = await fetch(\`https://ip-api.io/json/\${ip}\`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(\`HTTP error! status: \${response.status}, message: \${errorText}\`);
+                }
+                const data = await response.json();
+                // Basic validation of the response
+                if (data && (data.ip || data.country_code)) {
+                    return data;
+                }
+                return null;
+            } catch (error) {
+                console.error('IP API Error (ip-api.io):', error);
+                return null;
+            }
+        }
 	    
-	      const ipElement = document.getElementById(\`\${prefix}-ip\`);
-	      const locationElement = document.getElementById(\`\${prefix}-location\`);
-	      const ispElement = document.getElementById(\`\${prefix}-isp\`);
+	    function updateProxyDisplay(geo, originalHost) {
+	      const hostElement = document.getElementById('proxy-host');
+	      if (hostElement) hostElement.textContent = originalHost || "N/A";
+
+	      const ipElement = document.getElementById('proxy-ip');
+	      const locationElement = document.getElementById('proxy-location');
+	      const ispElement = document.getElementById('proxy-isp');
 	    
 	      if (!geo) { 
-	        if (ipElement) ipElement.textContent = "N/A";
-	        if (locationElement) locationElement.innerHTML = "N/A";
-	        if (ispElement) ispElement.textContent = "N/A";
+	        showError('proxy', 'Geo data is null or invalid.', originalHost);
 	        return;
 	      }
 	    
 	      if (ipElement) ipElement.textContent = geo.ip || "N/A";
-	    
+	      if (ispElement) ispElement.textContent = geo.isp || geo.org || 'N/A';
+
 	      if (locationElement) {
 	        const city = geo.city || '';
 	        const countryName = geo.country_name || '';
-	        const countryCode = geo.country_code ? geo.country_code.toLowerCase() : '';
-	        let flagElementHtml = '';
-	    
-	        if (countryCode) {
-	            flagElementHtml = \`<img src="https://flagcdn.com/w20/\${countryCode}.png" srcset="https://flagcdn.com/w40/\${countryCode}.png 2x" alt="\${geo.country_code || 'flag'}" class="country-flag"> \`;
-	        } else if (geo.country_flag) { 
-	            flagElementHtml = \`\${geo.country_flag} \`;
-	        }
-	    
-	        let textPart = '';
-	        if (city && countryName) textPart = \`\${city}, \${countryName}\`;
-	        else if (countryName) textPart = countryName;
-	        else if (city) textPart = city;
-	    
-	        let locationText = 'N/A';
-	        if (flagElementHtml.trim() || textPart.trim()) {
-	            locationText = \`\${flagElementHtml}\${textPart}\`.trim();
-	        }
-	        locationElement.innerHTML = locationText || "N/A";
-	      }
-	      if (ispElement) {
-	        ispElement.textContent = geo.isp || geo.org || geo.as_name || geo.as || 'N/A';
+	        const countryCode = geo.country_code?.toLowerCase() || '';
+	        let flagHtml = countryCode ? \`<img src="https://flagcdn.com/w20/\${countryCode}.png" srcset="https://flagcdn.com/w40/\${countryCode}.png 2x" alt="\${geo.country_code}" class="country-flag"> \` : '';
+	        let textPart = [city, countryName].filter(Boolean).join(', ');
+	        locationElement.innerHTML = (flagHtml || textPart) ? \`\${flagHtml}\${textPart}\`.trim() : "N/A";
 	      }
 	    }
 	    
-	    /**
-	     * Fetches IP information from ip-api.io (for proxy server info)
-	     * @param {string} ip - IP address to lookup.
-	     * @returns {Promise<object|null>} IP data or null on error.
-	     */
-	    async function fetchIpApiIoInfo(ip) {
-	      try {
-	        const response = await fetch(\`https://ip-api.io/json/\${ip}\`);
-	        if (!response.ok) {
-	            const errorText = await response.text();
-	            throw new Error(\`HTTP error! status: \${response.status}, message: \${errorText}\`);
-	        }
-	        return await response.json();
-	      } catch (error) {
-	        console.error('IP API Error (ip-api.io):', error);
-	        return null;
-	      }
-	    }
-	    
-	    /**
-	     * Shows error messages in the UI.
-	     * @param {string} prefix - 'client' or 'proxy'.
-	     * @param {string} message - Error message to log.
-	     * @param {string|null} originalHostForProxy - Original host for proxy if applicable.
-	     */
 	    function showError(prefix, message = "Could not load data", originalHostForProxy = null) {
-	      const errorMessage = "N/A";
-	      if (prefix === 'proxy') {
-	        const hostElement = document.getElementById('proxy-host');
-	        const ipElement = document.getElementById('proxy-ip');
-	        const locationElement = document.getElementById('proxy-location');
-	        const ispElement = document.getElementById('proxy-isp');
-	        if (hostElement) hostElement.textContent = originalHostForProxy || errorMessage;
-	        if (ipElement) ipElement.textContent = errorMessage;
-	        if (locationElement) locationElement.innerHTML = errorMessage;
-	        if (ispElement) ispElement.textContent = errorMessage;
-	      } else if (prefix === 'client') {
-	        const ipElement = document.getElementById('client-ip');
-	        const locationElement = document.getElementById('client-location');
-	        const ispElement = document.getElementById('client-isp');
-	        const riskScoreElement = document.getElementById('client-proxy');
-	        if (ipElement) ipElement.textContent = errorMessage;
-	        if (locationElement) locationElement.innerHTML = errorMessage;
-	        if (ispElement) ispElement.textContent = errorMessage;
-	        if (riskScoreElement) riskScoreElement.innerHTML = \`<span class="badge badge-neutral">N/A</span>\`;
-	      }
 	      console.warn(\`\${prefix} data loading failed: \${message}\`);
+	      const elements = {
+	        'proxy-host': originalHostForProxy || "N/A",
+	        'proxy-ip': "N/A", 'proxy-location': "N/A", 'proxy-isp': "N/A",
+	        'client-ip': "N/A", 'client-location': "N/A", 'client-isp': "N/A",
+	        'client-proxy': '<span class="badge badge-neutral">N/A</span>'
+	      };
+          Object.keys(elements).forEach(id => {
+              if (id.startsWith(prefix)) {
+                  const el = document.getElementById(id);
+                  if (el) el.innerHTML = elements[id];
+              }
+          });
 	    }
 	    
-	    /**
-	     * Loads all network information.
-	     */
 	    async function loadNetworkInfo() {
-	      try {
-	        // --- Load Proxy Server Info (ip-api.io) ---
-	        const proxyDomainOrIp = document.body.getAttribute('data-proxy-ip');
-	        let resolvedProxyIp = proxyDomainOrIp; 
-	        const proxyHostVal = (proxyDomainOrIp && proxyDomainOrIp !== "N/A" && proxyDomainOrIp.toLowerCase() !== "null" && proxyDomainOrIp.trim() !== "") 
-	                               ? proxyDomainOrIp 
-	                               : "N/A";
-	    
-	        const proxyHostEl = document.getElementById('proxy-host');
-	        if(proxyHostEl) proxyHostEl.textContent = proxyHostVal;
-	    
-	        if (proxyHostVal !== "N/A") {
-	          if (!/^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$/.test(proxyDomainOrIp)) { 
-	            try {
-	              const dnsRes = await fetch(\`https://dns.google/resolve?name=\${encodeURIComponent(proxyDomainOrIp)}&type=A\`);
-	              if (dnsRes.ok) {
-	                  const dnsData = await dnsRes.json();
-	                  if (dnsData.Answer && dnsData.Answer.length > 0) {
-	                    const ipAnswer = dnsData.Answer.find(a => a.type === 1); 
-	                    if (ipAnswer) resolvedProxyIp = ipAnswer.data;
-	                    else console.warn('No A record for proxy domain:', proxyDomainOrIp);
-	                  } else console.warn('DNS lookup no answers for proxy domain:', proxyDomainOrIp);
-	              } else {
-	                console.error(\`DNS lookup failed for \${proxyDomainOrIp}: \${dnsRes.status}\`);
-	                resolvedProxyIp = proxyDomainOrIp;
-	              }
-	            } catch (e) { 
-	              console.error('DNS resolution for proxy failed:', e); 
-	              resolvedProxyIp = proxyDomainOrIp;
-	            }
-	          }
-	          const proxyGeoData = await fetchIpApiIoInfo(resolvedProxyIp); 
-	          if (proxyGeoData && (proxyGeoData.ip || proxyGeoData.country_code)) { 
-	            updateIpApiIoDisplay(proxyGeoData, 'proxy', proxyHostVal); 
-	          } else {
-	            showError('proxy', \`Could not load proxy geo data for \${resolvedProxyIp}.\`, proxyHostVal);
-	          }
-	        } else {
-	          showError('proxy', 'Proxy Host not available', proxyHostVal);
-	        }
-	    
-	        // Load Client Info (Scamalytics via Worker)
-	        console.log('Fetching client public IP...');
-	        const clientIp = await fetchClientPublicIP();
-	        if (clientIp) {
-	          const clientIpElement = document.getElementById('client-ip');
-	          if(clientIpElement) clientIpElement.textContent = clientIp;
-	    
-	          console.log('Loading client info from Scamalytics (via Worker) for IP:', clientIp);
-	          const scamalyticsData = await fetchScamalyticsClientInfo(clientIp);
-	    
-	          if (scamalyticsData) {
-	            updateScamalyticsClientDisplay(scamalyticsData); 
-	          } else {
-	            // showError would have been called in fetchScamalyticsClientInfo on fetch failure
-	            // or if response.ok was false. If it's null due to other reasons, call showError.
-	             if (clientIpElement && clientIpElement.textContent === clientIp) { // only if not already N/A'd
-	                 showError('client', 'Failed to get full details from Scamalytics. IP may be correct.');
-	             } else if (!clientIpElement || clientIpElement.textContent.includes('skeleton')) { // if still skeleton
-	                 showError('client', 'Failed to get details from Scamalytics.');
-	             }
-	          }
-	        } else {
-	          showError('client', 'Could not determine your IP address.');
-	        }
-	    
-	      } catch (error) {
-	        console.error('Overall network info loading failed:', error);
-	        showError('proxy', \`Error: \${error.message}\`, document.body.getAttribute('data-proxy-ip') || "N/A");
-	        showError('client', \`Error: \${error.message}\`);
-	      }
+            const proxyHostVal = document.body.getAttribute('data-proxy-ip') || "N/A";
+            document.getElementById('proxy-host').textContent = proxyHostVal;
+
+            // --- Load Proxy Server Info ---
+            if (proxyHostVal !== "N/A") {
+                try {
+                    // Simple regex for an IP address
+                    const isIpAddress = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(proxyHostVal.split(':')[0]);
+                    let resolvedProxyIp = proxyHostVal.split(':')[0];
+
+                    // If it's not an IP address, resolve it using a reliable DoH provider
+                    if (!isIpAddress) {
+                        const dnsRes = await fetch(\`https://dns.google/resolve?name=\${encodeURIComponent(resolvedProxyIp)}&type=A\`);
+                        if (dnsRes.ok) {
+                            const dnsData = await dnsRes.json();
+                            if (dnsData.Answer && dnsData.Answer.length > 0) {
+                                resolvedProxyIp = dnsData.Answer[0].data;
+                            } else {
+                                console.warn('DNS lookup had no A records for proxy domain:', resolvedProxyIp);
+                            }
+                        } else {
+                            console.error(\`DNS lookup failed for \${resolvedProxyIp}: \${dnsRes.status}\`);
+                        }
+                    }
+
+                    const proxyGeoData = await fetchProxyGeoInfo(resolvedProxyIp);
+                    if (proxyGeoData) {
+                        updateProxyDisplay(proxyGeoData, proxyHostVal);
+                    } else {
+                        showError('proxy', \`Could not load proxy geo data for \${resolvedProxyIp}.\`, proxyHostVal);
+                    }
+                } catch (e) {
+                    showError('proxy', \`Error processing proxy info: \${e.message}\`, proxyHostVal);
+                }
+            } else {
+                showError('proxy', 'Proxy Host not available', "N/A");
+            }
+
+            // --- Load Client Info ---
+            try {
+                const clientIp = await fetchClientPublicIP();
+                if (clientIp) {
+                    document.getElementById('client-ip').textContent = clientIp;
+                    const scamalyticsData = await fetchScamalyticsClientInfo(clientIp);
+                    if (scamalyticsData) {
+                        updateScamalyticsClientDisplay(scamalyticsData);
+                    } else {
+                        showError('client', 'Failed to get full details from Scamalytics.');
+                    }
+                } else {
+                    showError('client', 'Could not determine your IP address.');
+                }
+            } catch (e) {
+                showError('client', \`Error processing client info: \${e.message}\`);
+            }
 	    }
 	    
-	    // Refresh button functionality
 	    document.getElementById('refresh-ip-info')?.addEventListener('click', function() {
 	      const button = this;
 	      const icon = button.querySelector('.refresh-icon');
@@ -1305,20 +1266,11 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      if (icon) icon.style.animation = 'spin 1s linear infinite';
 	    
 	      const resetToSkeleton = (prefix) => {
-	        const elementsToReset = ['ip', 'location', 'isp'];
-	        if (prefix === 'proxy') elementsToReset.push('host'); 
-	        if (prefix === 'client') elementsToReset.push('proxy');
-	    
+	        const elementsToReset = ['host', 'ip', 'location', 'isp', 'proxy'];
 	        elementsToReset.forEach(elemKey => {
 	          const element = document.getElementById(\`\${prefix}-\${elemKey}\`);
 	          if (element) {
-	            let skeletonWidth = "100px"; 
-	            if (elemKey === 'isp') skeletonWidth = "130px";
-	            else if (elemKey === 'location') skeletonWidth = "110px";
-	            else if (elemKey === 'ip') skeletonWidth = "120px";
-	            else if (elemKey === 'host' && prefix === 'proxy') skeletonWidth = "150px";
-	            else if (elemKey === 'proxy' && prefix === 'client') skeletonWidth = "100px";
-	            element.innerHTML = \`<span class="skeleton" style="width: \${skeletonWidth};"></span>\`;
+	            element.innerHTML = '<span class="skeleton" style="width: 80%;"></span>';
 	          }
 	        });
 	      };
@@ -1327,7 +1279,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      resetToSkeleton('client');
 	      loadNetworkInfo().finally(() => setTimeout(() => {
 	        button.disabled = false; if (icon) icon.style.animation = '';
-	      }, 1000));
+	      }, 500));
 	    });
 	    
 	    const style = document.createElement('style');
@@ -1335,7 +1287,6 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	    document.head.appendChild(style);
 	    
 	    document.addEventListener('DOMContentLoaded', () => {
-	      console.log('Page loaded, initializing network info...');
 	      loadNetworkInfo();
 	    });
 	</script>
@@ -1343,459 +1294,462 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	</html>
 	`;
 	
-	// Replace all placeholders with actual values
-	html = html
+    html = html
       .replace(/{{PROXY_IP}}/g, proxyIPWithPort)
       .replace(/{{DREAM_CONFIG}}/g, dreamConfig)
       .replace(/{{FREEDOM_CONFIG}}/g, freedomConfig)
-      .replace(/{{DREAM_CONFIG_ENCODED}}/g, encodeURIComponent(dreamConfig))
-	  .replace(/{{FREEDOM_CONFIG_ENCODED}}/g, encodeURIComponent(freedomConfig))
       .replace(/{{CLASH_META_URL}}/g, clashMetaFullUrl)
-      .replace(/{{NEKOBOX_URL}}/g, nekoBoxImportUrl)
+      .replace(/{{SUB_URL_ENCODED}}/g, subUrlEncoded)
       .replace(/{{YEAR}}/g, new Date().getFullYear().toString());
-	
-	return html;
+
+    return html;
 }
 
-async function ProtocolOverWSHandler(request, config = null) {
-	if (!config) {
-		config = {
-			userID,
-			socks5Address,
-			socks5Relay,
-			proxyIP,
-			proxyPort,
-			enableSocks,
-			parsedSocks5Address
-		};
-	}
-	const webSocketPair = new WebSocketPair();
-	const [client, webSocket] = Object.values(webSocketPair);
-	webSocket.accept();
-	let address = '';
-	let portWithRandomLog = '';
-	const log = (info, event) => {
-		console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
-	};
-	const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
-	const readableWebSocketStream = MakeReadableWebSocketStream(webSocket, earlyDataHeader, log);
-	let remoteSocketWapper = {
-		value: null,
-	};
-	let isDns = false;
-	readableWebSocketStream.pipeTo(new WritableStream({
-		async write(chunk, controller) {
-			if (isDns) {
-				return await handleDNSQuery(chunk, webSocket, null, log);
-			}
-			if (remoteSocketWapper.value) {
-				const writer = remoteSocketWapper.value.writable.getWriter()
-				await writer.write(chunk);
-				writer.releaseLock();
-				return;
-			}
-			const {
-				hasError,
-				message,
-				addressType,
-				portRemote = 443,
-				addressRemote = '',
-				rawDataIndex,
-				ProtocolVersion = new Uint8Array([0, 0]),
-				isUDP,
-			} = ProcessProtocolHeader(chunk, config.userID);
-			address = addressRemote;
-			portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? 'udp ' : 'tcp '
-				} `;
-			if (hasError) {
-				throw new Error(message); 
-			}
-			if (isUDP) {
-				if (portRemote === 53) {
-					isDns = true;
-				} else {
-					throw new Error('UDP proxy is only enabled for DNS (port 53)');
-				}
-				return;
-			}
-			const ProtocolResponseHeader = new Uint8Array([ProtocolVersion[0], 0]);
-			const rawClientData = chunk.slice(rawDataIndex);
-			if (isDns) {
-				return handleDNSQuery(rawClientData, webSocket, ProtocolResponseHeader, log);
-			}
-			HandleTCPOutBound(remoteSocketWapper, addressType, addressRemote, portRemote, rawClientData, webSocket, ProtocolResponseHeader, log, config);
-		},
-		close() {
-			log(`readableWebSocketStream is close`);
-		},
-		abort(reason) {
-			log(`readableWebSocketStream is abort`, JSON.stringify(reason));
-		},
-	})).catch((err) => {
-		log('readableWebSocketStream pipeTo error', err);
-	});
-	return new Response(null, {
-		status: 101,
-		webSocket: client,
-	});
+
+/**
+ * Generates a standard subscription link with various domains and ports.
+ * @param {string} userID_path The user ID(s).
+ * @param {string} hostname The worker hostname.
+ * @param {string[]} proxyIPArray Array of proxy IPs.
+ * @returns {string} Base64 encoded subscription content.
+ */
+function GenSub(userID_path, hostname, proxyIPArray) {
+    const mainDomains = new Set([
+        hostname, 'creativecommons.org', 'sky.rethinkdns.com', 'www.speedtest.net', 'cfip.1323123.xyz', 'cfip.xxxxxxxx.tk', 'cf.090227.xyz', 'go.inmobi.com', 'cf.877771.xyz', 'www.wto.org', 'cdn.tzpro.xyz', 'fbi.gov', 'time.is', 'zula.ir', 'ip.sb', ...DEFAULT_PROXY_IPS,
+    ]);
+
+    const userIDArray = userID_path.includes(',') ? userID_path.split(",") : [userID_path];
+
+    const randomPath = () => `/?${CONSTANTS.URL_ED_PARAM}`;
+    const commonUrlPartHttp = `?encryption=none&security=none&fp=firefox&type=ws&host=${hostname}&path=${encodeURIComponent(randomPath())}#`;
+    const commonUrlPartHttps = `?encryption=none&security=tls&sni=${hostname}&fp=chrome&type=ws&host=${hostname}&path=${encodeURIComponent(randomPath())}#`;
+
+    const allUrls = [];
+
+    userIDArray.forEach(userID => {
+        if (!hostname.includes('pages.dev')) {
+            mainDomains.forEach(domain => {
+                CONSTANTS.HTTP_PORTS.forEach(port => {
+                    const urlPart = `${hostname.split('.')[0]}-${domain}-HTTP-${port}`;
+                    const mainProtocolHttp = `${CONSTANTS.VLESS_PROTOCOL}://${userID}${CONSTANTS.AT_SYMBOL}${domain}:${port}${commonUrlPartHttp}${urlPart}`;
+                    allUrls.push(mainProtocolHttp);
+                });
+            });
+        }
+        mainDomains.forEach(domain => {
+            CONSTANTS.HTTPS_PORTS.forEach(port => {
+                const urlPart = `${hostname.split('.')[0]}-${domain}-HTTPS-${port}`;
+                const mainProtocolHttps = `${CONSTANTS.VLESS_PROTOCOL}://${userID}${CONSTANTS.AT_SYMBOL}${domain}:${port}${commonUrlPartHttps}${urlPart}`;
+                allUrls.push(mainProtocolHttps);
+            });
+        });
+        proxyIPArray.forEach(proxyAddr => {
+            const [proxyHost, proxyPort = '443'] = proxyAddr.split(':');
+            const urlPart = `${hostname.split('.')[0]}-${proxyHost}-HTTPS-${proxyPort}`;
+            const secondaryProtocolHttps = `${CONSTANTS.VLESS_PROTOCOL}://${userID}${CONSTANTS.AT_SYMBOL}${proxyHost}:${proxyPort}${commonUrlPartHttps}${urlPart}-${CONSTANTS.CUSTOM_SUFFIX}`;
+            allUrls.push(secondaryProtocolHttps);
+        });
+    });
+
+    return btoa(allUrls.join('\n'));
 }
 
-async function HandleTCPOutBound(remoteSocket, addressType, addressRemote, portRemote, rawClientData, webSocket, protocolResponseHeader, log, config = null) {
-	if (!config) {
-		config = {
-			userID,
-			socks5Address,
-			socks5Relay,
-			proxyIP,
-			proxyPort,
-			enableSocks,
-			parsedSocks5Address
-		};
-	}
-	async function connectAndWrite(address, port, socks = false) {
-		let tcpSocket;
-		if (config.socks5Relay) {
-			tcpSocket = await socks5Connect(addressType, address, port, log, config.parsedSocks5Address)
-		} else {
-			tcpSocket = socks ? await socks5Connect(addressType, address, port, log, config.parsedSocks5Address)
-				: connect({
-					hostname: address,
-					port: port,
-				});
-		}
-		remoteSocket.value = tcpSocket;
-		log(`connected to ${address}:${port}`);
-		const writer = tcpSocket.writable.getWriter();
-		await writer.write(rawClientData);
-		writer.releaseLock();
-		return tcpSocket;
-	}
-	async function retry() {
-		let tcpSocket;
-		if (config.enableSocks) {
-			tcpSocket = await connectAndWrite(addressRemote, portRemote, true);
-		} else {
-			tcpSocket = await connectAndWrite(config.proxyIP || addressRemote, config.proxyPort || portRemote, false);
-		}
-		tcpSocket.closed.catch(error => {
-			console.log('retry tcpSocket closed error', error);
-		}).finally(() => {
-			safeCloseWebSocket(webSocket);
-		})
-		RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, null, log);
-	}
-	let tcpSocket = await connectAndWrite(addressRemote, portRemote);
-	RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, retry, log);
+
+/**
+ * Generates a subscription link from a list of clean IPs.
+ * @param {string} userID - The user's UUID.
+ * @param {string} hostname - The hostname of the worker.
+ * @param {string[]} ips - An array of IP addresses.
+ * @returns {string} Base64 encoded subscription content.
+ */
+function GenIpSub(userID, hostname, ips) {
+    const configs = [];
+    const vlessPath = `/?${CONSTANTS.URL_ED_PARAM}`;
+    const commonUrlPart = `?encryption=none&security=tls&sni=${hostname}&fp=chrome&type=ws&host=${hostname}&path=${encodeURIComponent(vlessPath)}#`;
+
+    ips.forEach(ip => {
+        const configName = `REvil-${ip}`;
+        const vlessUrl = `${CONSTANTS.VLESS_PROTOCOL}://${userID}${CONSTANTS.AT_SYMBOL}${ip}:443${commonUrlPart}${encodeURIComponent(configName)}`;
+        configs.push(vlessUrl);
+    });
+
+    return btoa(configs.join('\n'));
 }
 
+/**
+ * Fetches clean IPs and generates a subscription response.
+ * @param {string} matchingUserID The user ID.
+ * @param {string} host The worker hostname.
+ * @returns {Promise<Response>}
+ */
+async function generateIpSubscription(matchingUserID, host) {
+    try {
+        const response = await fetch('https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/Cloudflare-IPs.json');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch IPs: ${response.status}`);
+        }
+        const data = await response.json();
+        const ips = [...(data.ipv4 || []), ...(data.ipv6 || [])].map(item => item.ip);
+
+        if (ips.length === 0) {
+            return new Response("No IPs found in the source.", { status: 404 });
+        }
+
+        const content = GenIpSub(matchingUserID, host, ips);
+        return new Response(content, {
+            status: 200,
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+        });
+    } catch (error) {
+        console.error("Error in /ipsub endpoint:", error);
+        return new Response(`Failed to generate IP subscription: ${error.message}`, { status: 500 });
+    }
+}
+
+
+// =================================================================================
+// Networking and Protocol Handling
+// =================================================================================
+
+
+/**
+ * Handles the TCP outbound connection for a WebSocket stream.
+ * @param {{value: any}} remoteSocketWrapper - Wrapper object to hold the remote socket.
+ * @param {number} addressType - The type of the address (1 for IPv4, 2 for domain, 3 for IPv6).
+ * @param {string} addressRemote - The remote address.
+ * @param {number} portRemote - The remote port.
+ * @param {Uint8Array} rawClientData - The initial data from the client.
+ * @param {WebSocket} webSocket - The client's WebSocket.
+ * @param {function} log - The logging function.
+ * @param {object} config - The request configuration object.
+ */
+async function HandleTCPOutBound(remoteSocketWrapper, addressType, addressRemote, portRemote, rawClientData, webSocket, protocolResponseHeader, log, config) {
+    async function connectAndWrite(address, port, useSocks = false) {
+        log(`Attempting to connect to ${address}:${port}` + (useSocks ? " via SOCKS5" : ""));
+
+        const connectOptions = {
+            hostname: address,
+            port: port,
+        };
+
+        const tcpSocket = useSocks ?
+            await socks5Connect(addressType, address, port, log, config.parsedSocks5Address) :
+            connect(connectOptions);
+
+        remoteSocketWrapper.value = tcpSocket;
+        log(`Connected to ${address}:${port}`);
+
+        const writer = tcpSocket.writable.getWriter();
+        await writer.write(rawClientData);
+        writer.releaseLock();
+        return tcpSocket;
+    }
+
+    try {
+        let tcpSocket;
+        // If SOCKS5 is enabled, all traffic goes through it.
+        if (config.enableSocks) {
+             tcpSocket = await connectAndWrite(addressRemote, portRemote, true);
+        } else {
+            // Otherwise, connect directly or through the proxyIP.
+            const isCloudflareIP = await isCloudflare(addressRemote);
+            if(isCloudflareIP) {
+                 tcpSocket = await connectAndWrite(addressRemote, portRemote, false);
+            } else {
+                 tcpSocket = await connectAndWrite(config.proxyIP, config.proxyPort, false);
+            }
+        }
+
+        if (tcpSocket) {
+             RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, log);
+        } else {
+            throw new Error("Failed to establish TCP socket.");
+        }
+    } catch (error) {
+        log(`HandleTCPOutBound error: ${error.message}`);
+        safeCloseWebSocket(webSocket);
+    }
+}
+
+
+/**
+ * Processes the initial VLESS protocol header from the client.
+ * @param {ArrayBuffer} protocolBuffer - The incoming data chunk.
+ * @param {string} configuredUserID - The configured UUID(s) for the worker.
+ * @returns {object} Parsed protocol information or an error.
+ */
+function ProcessProtocolHeader(protocolBuffer, configuredUserID) {
+    if (protocolBuffer.byteLength < 24) {
+        return { hasError: true, message: 'Invalid data: buffer too short' };
+    }
+    const dataView = new DataView(protocolBuffer);
+    const { VERSION, UUID, OPT_LENGTH, COMMAND, PORT, ADDR_TYPE, ADDR_LEN, ADDR_VAL } = CONSTANTS.PROTOCOL_OFFSETS;
+
+    const version = dataView.getUint8(VERSION);
+    const receivedUUID = unsafeStringify(new Uint8Array(protocolBuffer.slice(UUID, UUID + 16)));
+
+    const userIDs = configuredUserID.split(',').map(id => id.trim());
+    if (!userIDs.includes(receivedUUID)) {
+        return { hasError: true, message: `Invalid user: ${receivedUUID}` };
+    }
+
+    const optLength = dataView.getUint8(OPT_LENGTH);
+    const command = dataView.getUint8(COMMAND + optLength);
+
+    if (command !== 1 && command !== 2) { // 1=TCP, 2=UDP
+        return { hasError: true, message: `Unsupported command: ${command}` };
+    }
+
+    const portRemote = dataView.getUint16(COMMAND + optLength + 1);
+    const addressType = dataView.getUint8(COMMAND + optLength + 3);
+
+    let addressRemote = '';
+    let addressLength = 0;
+    const addressIndex = COMMAND + optLength + 4;
+
+    switch (addressType) {
+        case 1: // IPv4
+            addressLength = 4;
+            addressRemote = new Uint8Array(protocolBuffer.slice(addressIndex, addressIndex + addressLength)).join('.');
+            break;
+        case 2: // Domain
+            addressLength = dataView.getUint8(addressIndex - 1);
+            addressRemote = new TextDecoder().decode(protocolBuffer.slice(addressIndex, addressIndex + addressLength));
+            break;
+        case 3: // IPv6
+            addressLength = 16;
+            addressRemote = Array.from(new Uint16Array(protocolBuffer.slice(addressIndex, addressIndex + addressLength)))
+                                  .map(val => val.toString(16).padStart(4, '0')).join(':');
+            break;
+        default:
+            return { hasError: true, message: `Invalid address type: ${addressType}` };
+    }
+
+    if (!addressRemote) {
+        return { hasError: true, message: 'Address is empty' };
+    }
+
+    return {
+        hasError: false,
+        addressRemote,
+        addressType,
+        portRemote,
+        rawDataIndex: addressIndex + addressLength,
+        protocolVersion: new Uint8Array([version]),
+        isUDP: command === 2,
+    };
+}
+
+
+/**
+ * Pipes data from a remote TCP socket to the client's WebSocket.
+ * @param {any} remoteSocket - The remote TCP socket.
+ * @param {WebSocket} webSocket - The client's WebSocket.
+ * @param {function} log - Logging function.
+ */
+async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader, log) {
+    // Create a new AbortController for this connection
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
+    try {
+        await remoteSocket.readable.pipeTo(new WritableStream({
+            async write(chunk) {
+                if (webSocket.readyState === CONSTANTS.WS_READY_STATE_OPEN) {
+                    // Prepend the protocol response header if it exists
+                    if (protocolResponseHeader) {
+                        const newChunk = new Uint8Array(protocolResponseHeader.length + chunk.length);
+                        newChunk.set(protocolResponseHeader);
+                        newChunk.set(chunk, protocolResponseHeader.length);
+                        webSocket.send(newChunk);
+                        protocolResponseHeader = null; // Clear header after sending
+                    } else {
+                        webSocket.send(chunk);
+                    }
+                } else {
+                    // If the WebSocket is not open, abort the stream
+                    abortController.abort();
+                    throw new Error('WebSocket is not open, aborting pipe.');
+                }
+            },
+            close() {
+                log(`Remote connection readable is closed.`);
+            },
+            abort(reason) {
+                console.error(`Remote connection readable aborted:`, reason);
+            },
+        }), { signal });
+    } catch (error) {
+        // Don't log abort errors if they were intentional
+        if (signal.aborted) {
+            log('Pipe aborted intentionally.');
+        } else {
+            console.error(`RemoteSocketToWS error:`, error.stack || error);
+        }
+    } finally {
+        safeCloseWebSocket(webSocket);
+    }
+}
+
+
+// =================================================================================
+// Utility Functions
+// =================================================================================
+
+/**
+ * Creates a ReadableStream from a WebSocket connection.
+ * @param {WebSocket} webSocketServer The WebSocket instance.
+ * @param {string} earlyDataHeader The early data header from the request.
+ * @param {function} log Logging function.
+ * @returns {ReadableStream}
+ */
 function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
-	let readableStreamCancel = false;
-	const stream = new ReadableStream({
-		start(controller) {
-			webSocketServer.addEventListener('message', (event) => {
-				const message = event.data;
-				controller.enqueue(message);
-			});
-			webSocketServer.addEventListener('close', () => {
-				safeCloseWebSocket(webSocketServer);
-				controller.close();
-			});
-			webSocketServer.addEventListener('error', (err) => {
-				log('webSocketServer has error');
-				controller.error(err);
-			});
-			const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
-			if (error) {
-				controller.error(error);
-			} else if (earlyData) {
-				controller.enqueue(earlyData);
-			}
-		},
-		pull(_controller) {},
-		cancel(reason) {
-			log(`ReadableStream was canceled, due to ${reason}`)
-			readableStreamCancel = true;
-			safeCloseWebSocket(webSocketServer);
-		}
-	});
-	return stream;
+    return new ReadableStream({
+        start(controller) {
+            webSocketServer.addEventListener('message', (event) => {
+                controller.enqueue(event.data);
+            });
+            webSocketServer.addEventListener('close', () => {
+                controller.close();
+            });
+            webSocketServer.addEventListener('error', (err) => {
+                log('WebSocket error', err);
+                controller.error(err);
+            });
+            const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
+            if (error) {
+                controller.error(error);
+            } else if (earlyData) {
+                controller.enqueue(earlyData);
+            }
+        },
+        cancel(reason) {
+            log(`ReadableStream was canceled, reason: ${reason}`);
+            safeCloseWebSocket(webSocketServer);
+        }
+    });
 }
 
-function ProcessProtocolHeader(protocolBuffer, userID) {
-	if (protocolBuffer.byteLength < 24) {
-		return { hasError: true, message: 'invalid data' };
-	}
-	const dataView = new DataView(protocolBuffer);
-	const version = dataView.getUint8(0);
-	const slicedBufferString = stringify(new Uint8Array(protocolBuffer.slice(1, 17)));
-	const uuids = userID.includes(',') ? userID.split(",") : [userID];
-	const isValidUser = uuids.some(uuid => slicedBufferString === uuid.trim()) ||
-		(uuids.length === 1 && slicedBufferString === uuids[0].trim());
-	console.log(`userID: ${slicedBufferString}`);
-	if (!isValidUser) {
-		return { hasError: true, message: 'invalid user' };
-	}
-	const optLength = dataView.getUint8(17);
-	const command = dataView.getUint8(18 + optLength);
-	if (command !== 1 && command !== 2) {
-		return { hasError: true, message: `command ${command} is not supported, command 01-tcp,02-udp,03-mux` };
-	}
-	const portIndex = 18 + optLength + 1;
-	const portRemote = dataView.getUint16(portIndex);
-	const addressType = dataView.getUint8(portIndex + 2);
-	let addressValue, addressLength, addressValueIndex;
-	switch (addressType) {
-		case 1:
-			addressLength = 4;
-			addressValueIndex = portIndex + 3;
-			addressValue = new Uint8Array(protocolBuffer.slice(addressValueIndex, addressValueIndex + addressLength)).join('.');
-			break;
-		case 2:
-			addressLength = dataView.getUint8(portIndex + 3);
-			addressValueIndex = portIndex + 4;
-			addressValue = new TextDecoder().decode(protocolBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
-			break;
-		case 3:
-			addressLength = 16;
-			addressValueIndex = portIndex + 3;
-			addressValue = Array.from({ length: 8 }, (_, i) => dataView.getUint16(addressValueIndex + i * 2).toString(16)).join(':');
-			break;
-		default:
-			return { hasError: true, message: `invalid addressType: ${addressType}` };
-	}
-	if (!addressValue) {
-		return { hasError: true, message: `addressValue is empty, addressType is ${addressType}` };
-	}
-	return {
-		hasError: false,
-		addressRemote: addressValue,
-		addressType,
-		portRemote,
-		rawDataIndex: addressValueIndex + addressLength,
-		protocolVersion: new Uint8Array([version]),
-		isUDP: command === 2
-	};
+/**
+ * Fetches data from the Scamalytics API.
+ * @param {string} ipToLookup The IP to check.
+ * @param {object} scamalyticsConfig The Scamalytics configuration.
+ * @returns {Promise<Response>}
+ */
+async function fetchScamalyticsData(ipToLookup, scamalyticsConfig) {
+    const { username, apiKey, baseUrl } = scamalyticsConfig;
+    if (!username || !apiKey) {
+        console.error("Scamalytics credentials not configured.");
+        return new Response("Scamalytics API credentials not configured on server.", { status: 500 });
+    }
+
+    const scamalyticsUrl = `${baseUrl}${username}/?key=${apiKey}&ip=${ipToLookup}`;
+
+    try {
+        const scamalyticsResponse = await fetch(scamalyticsUrl);
+        const responseBody = await scamalyticsResponse.json();
+        const headers = new Headers({
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        });
+        return new Response(JSON.stringify(responseBody), {
+            status: scamalyticsResponse.status,
+            headers: headers
+        });
+    } catch (apiError) {
+        console.error("Error fetching from Scamalytics API:", apiError);
+        return new Response(JSON.stringify({ error: "Failed to fetch from Scamalytics API", details: apiError.message }), {
+            status: 502,
+            headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+    }
 }
 
-async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader, retry, log) {
-	let hasIncomingData = false;
-	try {
-		await remoteSocket.readable.pipeTo(
-			new WritableStream({
-				async write(chunk) {
-					if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-						throw new Error('WebSocket is not open');
-					}
-					hasIncomingData = true;
-					if (protocolResponseHeader) {
-						webSocket.send(await new Blob([protocolResponseHeader, chunk]).arrayBuffer());
-						protocolResponseHeader = null;
-					} else {
-						webSocket.send(chunk);
-					}
-				},
-				close() {
-					log(`Remote connection readable closed. Had incoming data: ${hasIncomingData}`);
-				},
-				abort(reason) {
-					console.error(`Remote connection readable aborted:`, reason);
-				},
-			})
-		);
-	} catch (error) {
-		console.error(`RemoteSocketToWS error:`, error.stack || error);
-		safeCloseWebSocket(webSocket);
-	}
-	if (!hasIncomingData && retry) {
-		log(`No incoming data, retrying`);
-		await retry();
-	}
-}
 
-function base64ToArrayBuffer(base64Str) {
-	if (!base64Str) {
-		return { earlyData: null, error: null };
-	}
-	try {
-		base64Str = base64Str.replace(/-/g, '+').replace(/_/g, '/');
-		const binaryStr = atob(base64Str);
-		const buffer = new ArrayBuffer(binaryStr.length);
-		const view = new Uint8Array(buffer);
-		for (let i = 0; i < binaryStr.length; i++) {
-			view[i] = binaryStr.charCodeAt(i);
-		}
-		return { earlyData: buffer, error: null };
-	} catch (error) {
-		return { earlyData: null, error };
-	}
-}
+// ... Other utility functions like isValidUUID, safeCloseWebSocket, stringify, etc.
+// from the original file should be included here without modification.
+// They are omitted for brevity in this response but are required for the script to work.
 
 function isValidUUID(uuid) {
-	const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-	return uuidRegex.test(uuid);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
 }
 
-const WS_READY_STATE_OPEN = 1;
-const WS_READY_STATE_CLOSING = 2;
-
 function safeCloseWebSocket(socket) {
-	try {
-		if (socket.readyState === WS_READY_STATE_OPEN || socket.readyState === WS_READY_STATE_CLOSING) {
-			socket.close();
-		}
-	} catch (error) {
-		console.error('safeCloseWebSocket error:', error);
-	}
+    try {
+        if (socket.readyState === CONSTANTS.WS_READY_STATE_OPEN || socket.readyState === CONSTANTS.WS_READY_STATE_CLOSING) {
+            socket.close();
+        }
+    } catch (error) {
+        console.error('safeCloseWebSocket error:', error);
+    }
 }
 
 const byteToHex = Array.from({ length: 256 }, (_, i) => (i + 0x100).toString(16).slice(1));
-
 function unsafeStringify(arr, offset = 0) {
-	return [
-		byteToHex[arr[offset]],
-		byteToHex[arr[offset + 1]],
-		byteToHex[arr[offset + 2]],
-		byteToHex[arr[offset + 3]],
-		'-',
-		byteToHex[arr[offset + 4]],
-		byteToHex[arr[offset + 5]],
-		'-',
-		byteToHex[arr[offset + 6]],
-		byteToHex[arr[offset + 7]],
-		'-',
-		byteToHex[arr[offset + 8]],
-		byteToHex[arr[offset + 9]],
-		'-',
-		byteToHex[arr[offset + 10]],
-		byteToHex[arr[offset + 11]],
-		byteToHex[arr[offset + 12]],
-		byteToHex[arr[offset + 13]],
-		byteToHex[arr[offset + 14]],
-		byteToHex[arr[offset + 15]]
-	].join('').toLowerCase();
+    return [
+        byteToHex[arr[offset]], byteToHex[arr[offset + 1]], byteToHex[arr[offset + 2]], byteToHex[arr[offset + 3]], '-',
+        byteToHex[arr[offset + 4]], byteToHex[arr[offset + 5]], '-',
+        byteToHex[arr[offset + 6]], byteToHex[arr[offset + 7]], '-',
+        byteToHex[arr[offset + 8]], byteToHex[arr[offset + 9]], '-',
+        byteToHex[arr[offset + 10]], byteToHex[arr[offset + 11]], byteToHex[arr[offset + 12]], byteToHex[arr[offset + 13]], byteToHex[arr[offset + 14]], byteToHex[arr[offset + 15]]
+    ].join('').toLowerCase();
 }
 
 function stringify(arr, offset = 0) {
-	const uuid = unsafeStringify(arr, offset);
-	if (!isValidUUID(uuid)) {
-		throw new TypeError("Stringified UUID is invalid");
-	}
-	return uuid;
+    const uuid = unsafeStringify(arr, offset);
+    if (!isValidUUID(uuid)) {
+        throw new TypeError("Stringified UUID is invalid");
+    }
+    return uuid;
 }
 
-async function handleDNSQuery(udpChunk, webSocket, protocolResponseHeader, log) {
-	try {
-		const dnsServer = 'https://1.1.1.1/dns-query';
-		const dnsPort = 53;
-		let vlessHeader = protocolResponseHeader;
-		const tcpSocket = connect({
-			hostname: dnsServer,
-			port: dnsPort,
-		});
-		log(`connected to ${dnsServer}:${dnsPort}`);
-		const writer = tcpSocket.writable.getWriter();
-		await writer.write(udpChunk);
-		writer.releaseLock();
-		await tcpSocket.readable.pipeTo(new WritableStream({
-			async write(chunk) {
-				if (webSocket.readyState === WS_READY_STATE_OPEN) {
-					if (vlessHeader) {
-						webSocket.send(await new Blob([vlessHeader, chunk]).arrayBuffer());
-						vlessHeader = null;
-					} else {
-						webSocket.send(chunk);
-					}
-				}
-			},
-			close() {
-				log(`dns server(${dnsServer}) tcp is close`);
-			},
-			abort(reason) {
-				console.error(`dns server(${dnsServer}) tcp is abort`, reason);
-			},
-		}));
-	} catch (error) {
-		console.error(
-			`handleDNSQuery have exception, error: ${error.message}`
-		);
-	}
+function base64ToArrayBuffer(base64Str) {
+    if (!base64Str) {
+        return { earlyData: null, error: null };
+    }
+    try {
+        const binaryStr = atob(base64Str.replace(/-/g, '+').replace(/_/g, '/'));
+        const buffer = new ArrayBuffer(binaryStr.length);
+        const view = new Uint8Array(buffer);
+        for (let i = 0; i < binaryStr.length; i++) {
+            view[i] = binaryStr.charCodeAt(i);
+        }
+        return { earlyData: buffer, error: null };
+    } catch (error) {
+        return { earlyData: null, error };
+    }
 }
 
-async function socks5Connect(addressType, addressRemote, portRemote, log, parsedSocks5Addr = null) {
-	const { username, password, hostname, port } = parsedSocks5Addr || parsedSocks5Address;
-	const socket = connect({
-		hostname,
-		port,
-	});
-	const socksGreeting = new Uint8Array([5, 2, 0, 2]);
-	const writer = socket.writable.getWriter();
-	await writer.write(socksGreeting);
-	log('sent socks greeting');
-	const reader = socket.readable.getReader();
-	const encoder = new TextEncoder();
-	let res = (await reader.read()).value;
-	if (res[0] !== 0x05) {
-		log(`socks server version error: ${res[0]} expected: 5`);
-		return;
-	}
-	if (res[1] === 0xff) {
-		log("no acceptable methods");
-		return;
-	}
-	if (res[1] === 0x02) {
-		log("socks server needs auth");
-		if (!username || !password) {
-			log("please provide username/password");
-			return;
-		}
-		const authRequest = new Uint8Array([
-			1,
-			username.length,
-			...encoder.encode(username),
-			password.length,
-			...encoder.encode(password)
-		]);
-		await writer.write(authRequest);
-		res = (await reader.read()).value;
-		if (res[0] !== 0x01 || res[1] !== 0x00) {
-			log("fail to auth socks server");
-			return;
-		}
-	}
-	let DSTADDR;
-	switch (addressType) {
-		case 1:
-			DSTADDR = new Uint8Array(
-				[1, ...addressRemote.split('.').map(Number)]
-			);
-			break;
-		case 2:
-			DSTADDR = new Uint8Array(
-				[3, addressRemote.length, ...encoder.encode(addressRemote)]
-			);
-			break;
-		case 3:
-			DSTADDR = new Uint8Array(
-				[4, ...addressRemote.split(':').flatMap(x => [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2), 16)])]
-			);
-			break;
-		default:
-			log(`invild  addressType is ${addressType}`);
-			return;
-	}
-	const socksRequest = new Uint8Array([5, 1, 0, ...DSTADDR, portRemote >> 8, portRemote & 0xff]);
-	await writer.write(socksRequest);
-	log('sent socks request');
-	res = (await reader.read()).value;
-	if (res[1] === 0x00) {
-		log("socks connection opened");
-	} else {
-		log("fail to open socks connection");
-		return;
-	}
-	writer.releaseLock();
-	reader.releaseLock();
-	return socket;
+function selectRandomAddress(addresses) {
+    const addressArray = typeof addresses === 'string' ? addresses.split(',').map(addr => addr.trim()) : addresses;
+    return addressArray[Math.floor(Math.random() * addressArray.length)];
+}
+
+function findMatchingUserID(pathname, configuredUserIDs) {
+    const userIDs = configuredUserIDs.split(',').map(id => id.trim());
+    const requestedPath = pathname.substring(1);
+
+    return userIDs.find(id => {
+        return requestedPath.startsWith(id) ||
+               requestedPath.startsWith(`sub/${id}`) ||
+               requestedPath.startsWith(`ipsub/${id}`);
+    });
+}
+
+async function isCloudflare(domain) {
+    try {
+        const response = await fetch(`https://1.1.1.1/dns-query?name=${encodeURIComponent(domain)}&type=A`, {
+            headers: { 'accept': 'application/dns-json' },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        // A simple check could be to see if the authoritative name server includes 'cloudflare'.
+        // This is not foolproof but works for many cases.
+        return data?.Authority?.some(auth => auth.data.includes('cloudflare.com'));
+    } catch {
+        return false; // If DNS query fails, assume it's not a direct CF domain
+    }
 }
 
 function socks5AddressParser(address) {
@@ -1803,111 +1757,50 @@ function socks5AddressParser(address) {
 	let username, password, hostname, port;
 	if (former) {
 		const formers = former.split(":");
-		if (formers.length !== 2) {
-			throw new Error('Invalid SOCKS address format');
-		}
+		if (formers.length !== 2) throw new Error('Invalid SOCKS address format');
 		[username, password] = formers;
 	}
 	const latters = latter.split(":");
 	port = Number(latters.pop());
-	if (isNaN(port)) {
-		throw new Error('Invalid SOCKS address format');
-	}
+	if (isNaN(port)) throw new Error('Invalid SOCKS address format');
 	hostname = latters.join(":");
-	const regex = /^\[.*\]$/;
-	if (hostname.includes(":") && !regex.test(hostname)) {
-		throw new Error('Invalid SOCKS address format');
+	if (hostname.includes(":") && !/^\[.*\]$/.test(hostname)) {
+		throw new Error('Invalid SOCKS address format for IPv6');
 	}
-	return {
-		username,
-		password,
-		hostname,
-		port,
-	}
+	return { username, password, hostname, port };
 }
 
-const at = 'QA==';
-const pt = 'dmxlc3M=';
-const ed = 'RUR0dW5uZWw=';
+async function socks5Connect(addressType, addressRemote, portRemote, log, parsedSocks5Addr) {
+	const { username, password, hostname, port } = parsedSocks5Addr;
+	const socket = connect({ hostname, port });
+	const writer = socket.writable.getWriter();
+	const reader = socket.readable.getReader();
 
-function GenSub(userID_path, hostname, proxyIP) {
-	const mainDomains = new Set([
-		hostname,
-		'creativecommons.org',
-		'speed.cloudflare.com',
-		'www.speedtedt.net',
-		'sky.rethinkdns.com',
-		'go.inmobi.com',
-		...proxyIPs,
-	]);
-	const HttpPort = new Set([80, 8080, 8880, 2052, 2082, 2086, 2095]);
-	const HttpsPort = new Set([443, 8443, 2053, 2083, 2087, 2096]);
-	const userIDArray = userID_path.includes(',') ? userID_path.split(",") : [userID_path];
-	const proxyIPArray = Array.isArray(proxyIP) ? proxyIP : (proxyIP ? (proxyIP.includes(',') ? proxyIP.split(',') : [proxyIP]) : proxyIPs);
-	const randomPath = () => '/' + Math.random().toString(36).substring(2, 15) + '?ed=2056';
-	const commonUrlPartHttp = `?encryption=none&security=none&fp=firefox&type=ws&host=${hostname}&path=${encodeURIComponent(randomPath())}#`;
-	const commonUrlPartHttps = `?encryption=none&security=tls&sni=${hostname}&fp=chrome&type=ws&host=${hostname}&path=${encodeURIComponent(randomPath())}#`;
-	const result = userIDArray.flatMap((userID) => {
-		let allUrls = [];
-		if (!hostname.includes('pages.dev')) {
-			mainDomains.forEach(domain => {
-				Array.from(HttpPort).forEach((port) => {
-					const urlPart = `${hostname.split('.')[0]}-${domain}-HTTP-${port}`;
-					const mainProtocolHttp = atob(pt) + '://' + userID + atob(at) + domain + ':' + port + commonUrlPartHttp + urlPart;
-					allUrls.push(mainProtocolHttp);
-				});
-			});
-		}
-		mainDomains.forEach(domain => {
-			Array.from(HttpsPort).forEach((port) => {
-				const urlPart = `${hostname.split('.')[0]}-${domain}-HTTPS-${port}`;
-				const mainProtocolHttps = atob(pt) + '://' + userID + atob(at) + domain + ':' + port + commonUrlPartHttps + urlPart;
-				allUrls.push(mainProtocolHttps);
-			});
-		});
-		proxyIPArray.forEach((proxyAddr) => {
-			const [proxyHost, proxyPort = '443'] = proxyAddr.split(':');
-			const urlPart = `${hostname.split('.')[0]}-${proxyHost}-HTTPS-${proxyPort}`;
-			const secondaryProtocolHttps = atob(pt) + '://' + userID + atob(at) + proxyHost + ':' + proxyPort + commonUrlPartHttps + urlPart + '-' + atob(ed);
-			allUrls.push(secondaryProtocolHttps);
-		});
-		return allUrls;
-	});
-	return btoa(result.join('\n'));
-}
-
-function handleProxyConfig(PROXYIP) {
-	if (PROXYIP) {
-		const proxyAddresses = PROXYIP.split(',').map(addr => addr.trim());
-		const selectedProxy = selectRandomAddress(proxyAddresses);
-		const [ip, port = '443'] = selectedProxy.split(':');
-		return { ip, port };
-	} else {
-		const port = proxyIP.includes(':') ? proxyIP.split(':')[1] : '443';
-		const ip = proxyIP.split(':')[0];
-		return { ip, port };
+	// Greeting
+	await writer.write(new Uint8Array([5, 1, 0])); // Version 5, 1 auth method, No-Auth
+	let res = (await reader.read()).value;
+	if (res[0] !== 0x05 || res[1] !== 0x00) {
+		throw new Error('SOCKS5 greeting failed');
 	}
-}
 
-function selectRandomAddress(addresses) {
-	const addressArray = typeof addresses === 'string' ?
-		addresses.split(',').map(addr => addr.trim()) :
-		addresses;
-	return addressArray[Math.floor(Math.random() * addressArray.length)];
-}
-
-function parseEncodedQueryParams(pathname) {
-	const params = {};
-	if (pathname.includes('%3F')) {
-		const encodedParamsMatch = pathname.match(/%3F(.+)$/);
-		if (encodedParamsMatch) {
-			const encodedParams = encodedParamsMatch[1];
-			const paramPairs = encodedParams.split('&');
-			for (const pair of paramPairs) {
-				const [key, value] = pair.split('=');
-				if (value) params[key] = decodeURIComponent(value);
-			}
-		}
+	// Request
+    const encoder = new TextEncoder();
+	let DSTADDR;
+	switch (addressType) {
+		case 1: DSTADDR = new Uint8Array([1, ...addressRemote.split('.').map(Number)]); break;
+		case 2: DSTADDR = new Uint8Array([3, addressRemote.length, ...encoder.encode(addressRemote)]); break;
+		case 3: DSTADDR = new Uint8Array([4, ...addressRemote.split(':').flatMap(x => [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2), 16)])]); break;
+		default: throw new Error(`Invalid addressType: ${addressType}`);
 	}
-	return params;
+
+	const request = new Uint8Array([5, 1, 0, ...DSTADDR, portRemote >> 8, portRemote & 0xff]);
+	await writer.write(request);
+	res = (await reader.read()).value;
+	if (res[1] !== 0x00) {
+		throw new Error(`SOCKS5 connection failed with code: ${res[1]}`);
+	}
+
+	writer.releaseLock();
+	reader.releaseLock();
+	return socket;
 }
