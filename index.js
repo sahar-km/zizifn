@@ -1173,7 +1173,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      }
 	    
 	      if (ipElement) ipElement.textContent = geo.ip || "N/A";
-	      if (ispElement) ispElement.textContent = geo.isp || geo.org || 'N/A';
+	      if (ispElement) ispElement.textContent = geo.isp || geo.org || geo.as_name || geo.as || 'N/A';
 
 	      if (locationElement) {
 	        const city = geo.city || '';
@@ -1431,6 +1431,10 @@ async function HandleTCPOutBound(remoteSocketWrapper, addressType, addressRemote
             hostname: address,
             port: port,
         };
+
+        if (port === 443) {
+            connectOptions.secureTransport = "on";
+        }
 
         const tcpSocket = useSocks ?
             await socks5Connect(addressType, address, port, log, config.parsedSocks5Address) :
