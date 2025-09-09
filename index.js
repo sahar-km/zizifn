@@ -1173,7 +1173,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	      }
 	    
 	      if (ipElement) ipElement.textContent = geo.ip || "N/A";
-	      if (ispElement) ispElement.textContent = geo.isp || geo.org || geo.as_name || geo.as || 'N/A';
+	      if (ispElement) ispElement.textContent = geo.isp || geo.organisation || geo.org || geo.as_name || geo.as || 'N/A';
 
 	      if (locationElement) {
 	        const city = geo.city || '';
