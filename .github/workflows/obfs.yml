@@ -1,11 +1,11 @@
 name: Obfuscate and Version Update
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**/index.*'
-      - '**/obfs.*'
+#  push:
+#    branches: [main]
+#    paths:
+#      - '**/index.*'
+#      - '**/obfs.*'
   workflow_dispatch:
 
 permissions:
