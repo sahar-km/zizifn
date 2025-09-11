@@ -1,10 +1,6 @@
 // @ts-ignore
 import { connect } from 'cloudflare:sockets';
 
-// =================================================================================
-// User Configuration and Constants
-// =================================================================================
-
 /**
  * Default User ID.
  * To generate your own UUID: https://www.uuidgenerator.net/
@@ -54,28 +50,17 @@ const CONSTANTS = {
 // =================================================================================
 
 export default {
-    async fetch(request, env, _ctx) {
-        try {
-            // 1. Create a final configuration object for this specific request.
-            // This object combines defaults, environment variables, and URL parameters,
-            // making the source of configuration clear and avoiding global state modification.
-            const config = createRequestConfig(request, env);
+  async fetch(request, env, ctx) {
+    try {
+      const config = createRequestConfig(request, env);   // بر اساس URL و ENV
+      if (request.headers.get('Upgrade') !== 'websocket')
+        return handleHttpRequest(request, config);        // HTTP End-points
 
-            const url = new URL(request.url);
-
-            // 2. Handle non-WebSocket requests (HTTP GET requests)
-            if (request.headers.get('Upgrade') !== 'websocket') {
-                return handleHttpRequest(request, config);
-            }
-
-            // 3. Handle WebSocket requests
-            return await handleWebSocketRequest(request, config);
-
-        } catch (err) {
-            // @ts-ignore
-            return new Response(err.toString(), { status: 500 });
-        }
-    },
+      return await handleWebSocketRequest(request, config); // WebSocket (VLESS)
+    } catch (err) {
+      return new Response(err?.toString() ?? 'Internal Error', { status: 500 });
+    }
+  }
 };
 
 /**
@@ -85,54 +70,56 @@ export default {
  * @returns {Promise<Response>} A Response object.
  */
 function handleHttpRequest(request, config) {
-    const { url, userID, host, proxyIP, proxyPort } = config;
-    const { pathname } = url;
+  const { url, host, proxyIP, proxyPort, userID } = config;
+  const { pathname } = url;
 
-    // Health check and info endpoint
-    if (pathname === '/probe') {
-        const cf = request.cf || {};
-        const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("X-Forwarded-For") || "";
-        return new Response(JSON.stringify({
-            ip,
-            asn: cf.asn || "",
-            isp: cf.asOrganization || cf.asnOrganization || "",
-            city: cf.city || "",
-            country: cf.country || "",
-            colo: cf.colo || "",
-        }, null, 2), {
-            headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
-        });
-    }
+  /* 1) Health-check */
+  if (pathname === '/probe') {
+    const cf = request.cf || {};
+    const ip = request.headers.get('CF-Connecting-IP') ||
+               request.headers.get('X-Forwarded-For')   || '';
+    return new Response(JSON.stringify({
+      ip,
+      asn     : cf.asn            || '',
+      isp     : cf.asOrganization || cf.asnOrganization || '',
+      city    : cf.city           || '',
+      country : cf.country        || '',
+      colo    : cf.colo           || ''
+    }, null, 2), {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store'
+      }
+    });
+  }
 
-    // Scamalytics lookup endpoint
-    if (pathname === "/scamalytics-lookup") {
-        const ipToLookup = url.searchParams.get("ip");
-        if (!ipToLookup) {
-            return new Response("Missing IP parameter", { status: 400 });
-        }
-        return fetchScamalyticsData(ipToLookup, config.scamalytics);
-    }
+  /* 2) Scamalytics */
+  if (pathname === '/scamalytics-lookup') {
+    const ip = url.searchParams.get('ip');
+    if (!ip) return new Response('Missing ip param', { status: 400 });
+    return fetchScamalyticsData(ip, config.scamalytics);
+  }
 
     // Check if the path matches a valid user ID pattern
-    const matchingUserID = findMatchingUserID(pathname, userID);
+const matchedUUID = findMatchingUserID(pathname, userID);
+if (matchedUUID) {
+	if (pathname === `/${matchedUUID}`)
+		return new Response(
+			getBeautifulConfig(matchedUUID, host, `${proxyIP}:${proxyPort}`),
+			{ status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8'} });
 
-    if (matchingUserID) {
-        // Main configuration page
-        if (pathname === `/${matchingUserID}`) {
-            const content = getBeautifulConfig(matchingUserID, host, `${proxyIP}:${proxyPort}`);
-            return new Response(content, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
-        }
-        // Standard subscription link
-        if (pathname === `/sub/${matchingUserID}`) {
-            const proxyAddresses = config.env.PROXYIP ? config.env.PROXYIP.split(',').map(addr => addr.trim()) : [`${proxyIP}:${proxyPort}`];
-            const content = GenSub(matchingUserID, host, proxyAddresses);
-            return new Response(content, { status: 200, headers: { "Content-Type": "text/plain;charset=utf-8" } });
-        }
-        // Clean IP subscription link
-        if (pathname === `/ipsub/${matchingUserID}`) {
-            return generateIpSubscription(matchingUserID, host);
-        }
-    }
+	if (pathname === `/sub/${matchedUUID}`) {
+		const proxyPool = config.env.PROXYIP
+			? config.env.PROXYIP.split(',').map(x=>x.trim())
+			: [`${proxyIP}:${proxyPort}`];
+		return new Response(
+			GenSub(matchedUUID, host, proxyPool),
+			{ status: 200, headers: { 'Content-Type': 'text/plain;charset=utf-8'} });
+	}
+
+	if (pathname === `/ipsub/${matchedUUID}`)
+      return generateIpSubscription(matchedUUID, host);
+  }
 
     // Fallback to a helpful message if no other route matches
     const fallbackHtml = `
@@ -143,7 +130,7 @@ function handleHttpRequest(request, config) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Worker Instructions</title>
         <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #1a1a1a; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
+            body { font-family: -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif; background-color: #1a1a1a; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; box-sizing: border-box; }
             .container { text-align: left; padding: 2rem; border-radius: 8px; background-color: #2a2a2a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); max-width: 700px; width: 100%; }
             h1 { text-align: center; color: #80bfff; margin-top: 0; }
             h2 { text-align: center; color: #57a6ff; margin-top: 2rem; margin-bottom: 1rem; border-bottom: 1px solid #444; padding-bottom: 0.5rem; }
@@ -203,83 +190,47 @@ function handleHttpRequest(request, config) {
  * @returns {Promise<Response>} A Response object with WebSocket handlers.
  */
 async function handleWebSocketRequest(request, config) {
-    const webSocketPair = new WebSocketPair();
-    const [client, webSocket] = Object.values(webSocketPair);
-    webSocket.accept();
+  const pair = new WebSocketPair();
+  const [ client, ws ] = Object.values(pair);
+  ws.accept();
 
-    let address = '';
-    let portWithRandomLog = '';
-    const log = (info, event) => {
-        console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
-    };
+  let remoteWrapper = { value: null };
+  let isDns = false;
+  let target = '';
 
-    const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
-    const readableWebSocketStream = MakeReadableWebSocketStream(webSocket, earlyDataHeader, log);
+  const log = (...args)=>console.log('[WS]', ...args);
+  const early = request.headers.get('sec-websocket-protocol') || '';
 
-    let remoteSocketWrapper = {
-        value: null,
-    };
-    let isDns = false;
+  const readable = MakeReadableWebSocketStream(ws, early, log);
 
-    readableWebSocketStream.pipeTo(new WritableStream({
-        async write(chunk, controller) {
-            if (isDns) {
-                return; // DNS over TCP is not supported in this version
-            }
-            if (remoteSocketWrapper.value) {
-                const writer = remoteSocketWrapper.value.writable.getWriter();
-                await writer.write(chunk);
-                writer.releaseLock();
-                return;
-            }
+  readable.pipeTo(new WritableStream({
+    async write(chunk) {
+      if (isDns) return;
 
-            const {
-                hasError,
-                message,
-                addressType,
-                portRemote = 443,
-                addressRemote = '',
-                rawDataIndex,
-                protocolVersion,
-                isUDP,
-            } = ProcessProtocolHeader(chunk, config.userID);
+      if (remoteWrapper.value) {
+        const w = remoteWrapper.value.writable.getWriter();
+        await w.write(chunk); w.releaseLock(); return;
+      }
 
-            address = addressRemote;
-            portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? 'udp' : 'tcp'}`;
+      const parsed = ProcessProtocolHeader(chunk, config.userID);
+      if (parsed.hasError) throw new Error(parsed.message);
+      if (parsed.isUDP)   throw new Error('UDP not supported');
 
-            if (hasError) {
-                throw new Error(message);
-            }
+      const { addressRemote, portRemote, addressType, rawDataIndex } = parsed;
+      target = `${addressRemote}:${portRemote}`;
+      const remain = chunk.slice(rawDataIndex);
 
-            if (isUDP) {
-                throw new Error('UDP proxy is not supported.');
-            }
+      await HandleTCPOutBound(
+        remoteWrapper, addressType, addressRemote, portRemote,
+        remain, ws, log, config
+      );
+    },
+    close() { log('readable closed'); },
+    abort(r){ log('readable abort', r); }
+  })).catch(e => { log('pipeTo err', e); safeCloseWebSocket(ws); });
 
-            const protocolResponseHeader = new Uint8Array([protocolVersion[0], 0]);
-            const rawClientData = chunk.slice(rawDataIndex);
-            HandleTCPOutBound(remoteSocketWrapper, addressType, addressRemote, portRemote, rawClientData, webSocket, protocolResponseHeader, log, config);
-        },
-        close() {
-            log(`readableWebSocketStream is closed`);
-        },
-        abort(reason) {
-            log(`readableWebSocketStream is aborted`, JSON.stringify(reason));
-        },
-    })).catch((err) => {
-        log('readableWebSocketStream pipeTo error', err);
-        safeCloseWebSocket(webSocket);
-    });
-
-    return new Response(null, {
-        status: 101,
-        webSocket: client,
-    });
+  return new Response(null, { status:101, webSocket: client });
 }
-
-
-// =================================================================================
-// Configuration Handling
-// =================================================================================
 
 /**
  * Creates a unified configuration object for a single request.
@@ -292,69 +243,40 @@ async function handleWebSocketRequest(request, config) {
 function createRequestConfig(request, env) {
     const url = new URL(request.url);
 
-    // 1. Start with hardcoded defaults
-    let config = {
-        userID: DEFAULT_USER_ID,
-        proxyIPs: DEFAULT_PROXY_IPS,
-        socks5Address: '',
-        socks5Relay: false,
-        scamalytics: {
-            username: "dianaclk01",
-            apiKey: "c57eb62bbde89f00742cb3f92d7127f96132c9cea460f18c08fd5e62530c5604",
-            baseUrl: "https://api11.scamalytics.com/v3/",
-        },
-    };
+function createRequestConfig(request, env) {
+  const url = new URL(request.url);
+  const cfg = {
+    userID        : DEFAULT_USER_ID,
+    proxyIPs      : DEFAULT_PROXY_IPS,
+    socks5Address : '',
+    socks5Relay   : false,
+    scamalytics   : {
+      username: env.SCAMALYTICS_USERNAME ?? 'dianaclk01',
+      apiKey  : env.SCAMALYTICS_API_KEY  ?? 'c57eb62bbde89f00742cb3f92d7127f96132c9cea460f18c08fd5e62530c5604',
+      baseUrl : 'https://api11.scamalytics.com/v3/'
+    },
+    env, url, host: url.hostname
+  };
 
-    // 2. Override with environment variables if they exist
-    if (env.UUID) config.userID = env.UUID;
-    if (env.PROXYIP) config.proxyIPs = env.PROXYIP.split(',').map(ip => ip.trim());
-    if (env.SOCKS5) config.socks5Address = env.SOCKS5;
-    if (env.SOCKS5_RELAY) config.socks5Relay = env.SOCKS5_RELAY === 'true';
-    if (env.SCAMALYTICS_USERNAME) config.scamalytics.username = env.SCAMALYTICS_USERNAME;
-    if (env.SCAMALYTICS_API_KEY) config.scamalytics.apiKey = env.SCAMALYTICS_API_KEY;
+  if (env.UUID)    cfg.userID   = env.UUID;
+  if (env.PROXYIP) cfg.proxyIPs = env.PROXYIP.split(',').map(x=>x.trim());
+  if (env.SOCKS5)  cfg.socks5Address = env.SOCKS5;
+  if (env.SOCKS5_RELAY) cfg.socks5Relay = env.SOCKS5_RELAY === 'true';
 
-    // 3. Override with URL parameters for maximum flexibility
-    let urlParams = new URLSearchParams(url.search);
-    const urlPROXYIP = urlParams.get('proxyip');
-    const urlSOCKS5 = urlParams.get('socks5');
-    const urlSOCKS5_RELAY = urlParams.get('socks5_relay');
-    if (urlPROXYIP) config.proxyIPs = urlPROXYIP.split(',').map(ip => ip.trim());
-    if (urlSOCKS5) config.socks5Address = urlSOCKS5;
-    if (urlSOCKS5_RELAY) config.socks5Relay = urlSOCKS5_RELAY === 'true';
+  const qs = url.searchParams;
+  if (qs.get('proxyip'))  cfg.proxyIPs = qs.get('proxyip').split(',').map(x=>x.trim());
+  if (qs.get('socks5'))   cfg.socks5Address = qs.get('socks5');
+  if (qs.get('socks5_relay')) cfg.socks5Relay = qs.get('socks5_relay')==='true';
 
-    // 4. Final processing and adding dynamic values
-    if (!isValidUUID(config.userID.split(',')[0])) {
-        throw new Error('UUID is not valid');
-    }
+  if (!isValidUUID(cfg.userID.split(',')[0]))
+    throw new Error('UUID format invalid');
 
-    const selectedProxy = selectRandomAddress(config.proxyIPs);
-    const [proxyIP, proxyPort = '443'] = selectedProxy.split(':');
-    config.proxyIP = proxyIP;
-    config.proxyPort = proxyPort;
-
-    config.url = url;
-    config.host = url.hostname;
-    config.env = env; // Keep env for direct access if needed
-
-    // Parse SOCKS5 address if provided
-    config.enableSocks = false;
-    if (config.socks5Address) {
-        try {
-            const selectedSocks5 = selectRandomAddress(config.socks5Address);
-            config.parsedSocks5Address = socks5AddressParser(selectedSocks5);
-            config.enableSocks = true;
-        } catch (err) {
-            console.log(`SOCKS5 address parsing error: ${err.toString()}`);
-            config.enableSocks = false;
-        }
-    }
-
-    return config;
+  const selProxy = selectRandomAddress(cfg.proxyIPs);
+  [cfg.proxyIP, cfg.proxyPort='443'] = selProxy.split(':');
+  cfg.enableSocks = !!cfg.socks5Address;
+  if (cfg.enableSocks) cfg.parsedSocks5Address = socks5AddressParser(cfg.socks5Address);
+  return cfg;
 }
-
-// =================================================================================
-// HTML and Subscription Generation
-// =================================================================================
 
 /**
  * Generates the beautiful configuration UI.
@@ -365,10 +287,10 @@ function createRequestConfig(request, env) {
  */
 function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
     const vlessPath = `/?${CONSTANTS.URL_ED_PARAM}`;
-    const dreamConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Dream`;
-    const freedomConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=firefox&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Freedom`;
+    const dreamConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Xray`;
+    const freedomConfig = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=firefox&type=ws&host=${hostName}&path=${encodeURIComponent(vlessPath)}#${hostName}-Singbox`;
 
-    const subUrl = `https://${hostName}/sub/${userID}`;
+    const subUrl = `https://${hostName}/ipsub/${userID}`;
     const subUrlEncoded = encodeURIComponent(subUrl);
     const clashMetaFullUrl = `clash://install-config?url=https://revil-sub.pages.dev/sub/clash-meta?url=${subUrlEncoded}&remote_config=&udp=false&ss_uot=false&show_host=false&forced_ws0rtt=true`;
 
@@ -1020,7 +942,7 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg></span>
 	          <span class="button-text">Import to Clash Meta</span>
 	        </a>
-	        <a href="nekobox://install-config?url={{SUB_URL_ENCODED}}" class="button client-btn">
+	        <a href="sn://subscription?url={{SUB_URL_ENCODED}}" class="button client-btn">
 	          <span class="client-icon"><svg viewBox="0 0 24 24"><path d="M20,8h-3V6c0-1.1-0.9-2-2-2H9C7.9,4,7,4.9,7,6v2H4C2.9,8,2,8.9,2,10v9c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2v-9 C22,8.9,21.1,8,20,8z M9,6h6v2H9V6z M20,19H4v-2h16V19z M20,15H4v-5h3v1c0,0.55,0.45,1,1,1h1.5c0.28,0,0.5-0.22,0.5-0.5v-0.5h4v0.5 c0,0.28,0.22,0.5,0.5,0.5H16c0.55,0,1-0.45,1-1v-1h3V15z" /><circle cx="8.5" cy="13.5" r="1" /><circle cx="15.5" cy="13.5" r="1" /><path d="M12,15.5c-0.55,0-1-0.45-1-1h2C13,15.05,12.55,15.5,12,15.5z" /></svg></span>
 	          <span class="button-text">Import to NekoBox</span>
 	        </a>
@@ -1305,7 +1227,6 @@ function getBeautifulConfig(userID, hostName, proxyIPWithPort) {
     return html;
 }
 
-
 /**
  * Generates a standard subscription link with various domains and ports.
  * @param {string} userID_path The user ID(s).
@@ -1406,12 +1327,6 @@ async function generateIpSubscription(matchingUserID, host) {
     }
 }
 
-
-// =================================================================================
-// Networking and Protocol Handling
-// =================================================================================
-
-
 /**
  * Handles the TCP outbound connection for a WebSocket stream.
  * @param {{value: any}} remoteSocketWrapper - Wrapper object to hold the remote socket.
@@ -1475,75 +1390,47 @@ async function HandleTCPOutBound(remoteSocketWrapper, addressType, addressRemote
     }
 }
 
-
 /**
  * Processes the initial VLESS protocol header from the client.
  * @param {ArrayBuffer} protocolBuffer - The incoming data chunk.
  * @param {string} configuredUserID - The configured UUID(s) for the worker.
  * @returns {object} Parsed protocol information or an error.
  */
-function ProcessProtocolHeader(protocolBuffer, configuredUserID) {
-    if (protocolBuffer.byteLength < 24) {
-        return { hasError: true, message: 'Invalid data: buffer too short' };
-    }
-    const dataView = new DataView(protocolBuffer);
-    const { VERSION, UUID, OPT_LENGTH, COMMAND, PORT, ADDR_TYPE, ADDR_LEN, ADDR_VAL } = CONSTANTS.PROTOCOL_OFFSETS;
 
-    const version = dataView.getUint8(VERSION);
-    const receivedUUID = unsafeStringify(new Uint8Array(protocolBuffer.slice(UUID, UUID + 16)));
+function ProcessProtocolHeader(buffer, configuredIDs) {
+  if (buffer.byteLength < 24) return {hasError:true, message:'buffer too short'};
+  const dv = new DataView(buffer);
+  const off = CONSTANTS.PROTOCOL_OFFSETS;
 
-    const userIDs = configuredUserID.split(',').map(id => id.trim());
-    if (!userIDs.includes(receivedUUID)) {
-        return { hasError: true, message: `Invalid user: ${receivedUUID}` };
-    }
+  const ver = dv.getUint8(off.VERSION);
+  if (ver !== 1) return {hasError:true, message:'Unsupported VLESS ver'};
 
-    const optLength = dataView.getUint8(OPT_LENGTH);
-    const command = dataView.getUint8(COMMAND + optLength);
+	const recvUUID = stringify(new Uint8Array(buffer.slice(off.UUID, off.UUID+16)));
 
-    if (command !== 1 && command !== 2) { // 1=TCP, 2=UDP
-        return { hasError: true, message: `Unsupported command: ${command}` };
-    }
+	const allowed = configuredIDs.split(',').map(s=>s.trim().toLowerCase());
+	if (!allowed.includes(recvUUID.toLowerCase()))
+  	return {hasError:true, message:`Invalid user ${recvUUID}`};
 
-    const portRemote = dataView.getUint16(COMMAND + optLength + 1);
-    const addressType = dataView.getUint8(COMMAND + optLength + 3);
+	const optLen  = dv.getUint8(off.OPT_LENGTH);
+	const cmd     = dv.getUint8(off.COMMAND + optLen);
+	const port    = dv.getUint16(off.COMMAND + optLen + 1);
+	const aType   = dv.getUint8(off.COMMAND + optLen + 3);
+	const addrIdx = off.COMMAND + optLen + 4;
 
-    let addressRemote = '';
-    let addressLength = 0;
-    const addressIndex = COMMAND + optLength + 4;
+	let addr = '', aLen=0;
+	switch (aType) {
+		case 1: aLen=4; addr=Array.from(new Uint8Array(buffer.slice(addrIdx,addrIdx+4))).join('.'); break;
+		case 2: aLen=dv.getUint8(addrIdx-1); addr=new TextDecoder().decode(buffer.slice(addrIdx, addrIdx+aLen)); break;
+		case 3: aLen=16; addr=[...new Uint16Array(buffer.slice(addrIdx,addrIdx+16))].map(x=>x.toString(16).padStart(4,'0')).join(':'); break;
+		default: return {hasError:true,message:`Bad ATYP ${aType}`};
+	}
 
-    switch (addressType) {
-        case 1: // IPv4
-            addressLength = 4;
-            addressRemote = new Uint8Array(protocolBuffer.slice(addressIndex, addressIndex + addressLength)).join('.');
-            break;
-        case 2: // Domain
-            addressLength = dataView.getUint8(addressIndex - 1);
-            addressRemote = new TextDecoder().decode(protocolBuffer.slice(addressIndex, addressIndex + addressLength));
-            break;
-        case 3: // IPv6
-            addressLength = 16;
-            addressRemote = Array.from(new Uint16Array(protocolBuffer.slice(addressIndex, addressIndex + addressLength)))
-                                  .map(val => val.toString(16).padStart(4, '0')).join(':');
-            break;
-        default:
-            return { hasError: true, message: `Invalid address type: ${addressType}` };
-    }
-
-    if (!addressRemote) {
-        return { hasError: true, message: 'Address is empty' };
-    }
-
-    return {
-        hasError: false,
-        addressRemote,
-        addressType,
-        portRemote,
-        rawDataIndex: addressIndex + addressLength,
-        protocolVersion: new Uint8Array([version]),
-        isUDP: command === 2,
-    };
+	return {
+		hasError:false, addressRemote:addr, portRemote:port,
+		addressType:aType, rawDataIndex: addrIdx+aLen,
+		isUDP: cmd===2
+  };
 }
-
 
 /**
  * Pipes data from a remote TCP socket to the client's WebSocket.
@@ -1566,7 +1453,7 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
                         newChunk.set(protocolResponseHeader);
                         newChunk.set(chunk, protocolResponseHeader.length);
                         webSocket.send(newChunk);
-                        protocolResponseHeader = null; // Clear header after sending
+                        protocolResponseHeader = null;
                     } else {
                         webSocket.send(chunk);
                     }
@@ -1584,7 +1471,6 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
             },
         }), { signal });
     } catch (error) {
-        // Don't log abort errors if they were intentional
         if (signal.aborted) {
             log('Pipe aborted intentionally.');
         } else {
@@ -1594,11 +1480,6 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
         safeCloseWebSocket(webSocket);
     }
 }
-
-
-// =================================================================================
-// Utility Functions
-// =================================================================================
 
 /**
  * Creates a ReadableStream from a WebSocket connection.
@@ -1671,34 +1552,22 @@ async function fetchScamalyticsData(ipToLookup, scamalyticsConfig) {
 
 
 // ... Other utility functions like isValidUUID, safeCloseWebSocket, stringify, etc.
-// from the original file should be included here without modification.
 // They are omitted for brevity in this response but are required for the script to work.
 
-function isValidUUID(uuid) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
+function stringify(arr, offset=0){
+  const b2h = i=>(i+0x100).toString(16).slice(1);
+  const uuid = [
+    b2h(arr[offset]),b2h(arr[offset+1]),b2h(arr[offset+2]),b2h(arr[offset+3]),'-',
+    b2h(arr[offset+4]),b2h(arr[offset+5]),'-',
+    b2h(arr[offset+6]),b2h(arr[offset+7]),'-',
+    b2h(arr[offset+8]),b2h(arr[offset+9]),'-',
+    b2h(arr[offset+10]),b2h(arr[offset+11]),b2h(arr[offset+12]),b2h(arr[offset+13]),b2h(arr[offset+14]),b2h(arr[offset+15])
+  ].join('');
+  return uuid.toLowerCase();
 }
-
-function safeCloseWebSocket(socket) {
-    try {
-        if (socket.readyState === CONSTANTS.WS_READY_STATE_OPEN || socket.readyState === CONSTANTS.WS_READY_STATE_CLOSING) {
-            socket.close();
-        }
-    } catch (error) {
-        console.error('safeCloseWebSocket error:', error);
-    }
-}
-
-const byteToHex = Array.from({ length: 256 }, (_, i) => (i + 0x100).toString(16).slice(1));
-function unsafeStringify(arr, offset = 0) {
-    return [
-        byteToHex[arr[offset]], byteToHex[arr[offset + 1]], byteToHex[arr[offset + 2]], byteToHex[arr[offset + 3]], '-',
-        byteToHex[arr[offset + 4]], byteToHex[arr[offset + 5]], '-',
-        byteToHex[arr[offset + 6]], byteToHex[arr[offset + 7]], '-',
-        byteToHex[arr[offset + 8]], byteToHex[arr[offset + 9]], '-',
-        byteToHex[arr[offset + 10]], byteToHex[arr[offset + 11]], byteToHex[arr[offset + 12]], byteToHex[arr[offset + 13]], byteToHex[arr[offset + 14]], byteToHex[arr[offset + 15]]
-    ].join('').toLowerCase();
-}
+function isValidUUID(u){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(u);}
+function safeCloseWebSocket(s){try{if(s.readyState===1||s.readyState===2) s.close();}catch{}}
+function selectRandomAddress(a){const arr=typeof a==='string'?a.split(',').map(s=>s.trim()):a;return arr[Math.floor(Math.random()*arr.length)];}
 
 function stringify(arr, offset = 0) {
     const uuid = unsafeStringify(arr, offset);
@@ -1723,11 +1592,6 @@ function base64ToArrayBuffer(base64Str) {
     } catch (error) {
         return { earlyData: null, error };
     }
-}
-
-function selectRandomAddress(addresses) {
-    const addressArray = typeof addresses === 'string' ? addresses.split(',').map(addr => addr.trim()) : addresses;
-    return addressArray[Math.floor(Math.random() * addressArray.length)];
 }
 
 function findMatchingUserID(pathname, configuredUserIDs) {
@@ -1789,8 +1653,8 @@ async function socks5Connect(addressType, addressRemote, portRemote, log, parsed
 
 	// Request
     const encoder = new TextEncoder();
-	let DSTADDR;
-	switch (addressType) {
+  	let DSTADDR;
+	  switch (addressType) {
 		case 1: DSTADDR = new Uint8Array([1, ...addressRemote.split('.').map(Number)]); break;
 		case 2: DSTADDR = new Uint8Array([3, addressRemote.length, ...encoder.encode(addressRemote)]); break;
 		case 3: DSTADDR = new Uint8Array([4, ...addressRemote.split(':').flatMap(x => [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2), 16)])]); break;
