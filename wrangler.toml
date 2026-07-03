@@ -1,0 +1,10 @@
+name = "zr-wasm"
+main = "index.js"
+compatibility_date = "2025-09-01"
+
+[build]
+command = "wasm-pack build --target web"
+
+[[rules]]
+type = "CompiledWasm"
+globs = ["**/*.wasm"]
