@@ -1,4 +1,4 @@
-name = "zr-wasm"
+name = "0x1"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
