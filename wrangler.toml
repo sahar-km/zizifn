@@ -1,4 +1,4 @@
-name = "0x1"
+name = "shr"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
