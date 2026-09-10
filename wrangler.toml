@@ -1,4 +1,4 @@
-name = "0x00"
+name = "test"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
@@ -9,3 +9,8 @@ command = "wasm-pack build --target web"
 type = "CompiledWasm"
 globs = ["**/*.wasm"]
 fallthrough = false
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
