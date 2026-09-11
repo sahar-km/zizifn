@@ -75,16 +75,21 @@ async function HandleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
     return tcpSocket;
   }
 
-  async function retry() {
-    const tcpSocket = await connectAndWrite(config.proxyIP || addressRemote, config.proxyPort || portRemote);
+  async function retryWithPool(pool, index) {
+    if (index >= pool.length) {
+      safeCloseWebSocket(webSocket);
+      return;
+    }
+    const [proxyHost, proxyPort = "443"] = pool[index].split(":");
+    const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
     tcpSocket.closed
-      .catch((error) => console.log("retry tcpSocket closed error", error))
+      .catch((error) => console.log("proxy tcpSocket closed error", error))
       .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, null, log);
+    RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, () => retryWithPool(pool, index + 1), log);
   }
 
   const tcpSocket = await connectAndWrite(addressRemote, portRemote);
-  RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, retry, log);
+  RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, () => retryWithPool(config.proxyPool || [], 0), log);
 }
 
 function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
