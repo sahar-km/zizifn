@@ -119,3 +119,60 @@ export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 export function isInIgnoredRange(ip) {
   return ip.startsWith("198.41.208.");
 }
+
+export function buildMainDomains(hostName) {
+  return [
+    hostName,
+    "creativecommons.org",
+    "sky.rethinkdns.com",
+    "www.speedtest.net",
+    "singapore.com",
+    "go.inmobi.com",
+    "www.visa.com",
+    "www.wto.org",
+    "chatgpt.com",
+    "medium.com",
+    "lb.nscl.ir",
+    "nodejs.org",
+    "linkerd.io",
+    "harbor.io",
+    "npmjs.com",
+    "csgo.com",
+    "fbi.gov",
+    "ip.sb",
+    "time.is",
+    "icook.hk",
+    "codepen.io",
+    "unpkg.com",
+    "jsdelivr.com",
+    "www.cdnjs.com",
+    "auth.vercel.com",
+    "www.udacity.com",
+    "www.gitbook.com",
+    "www.ipaddress.my",
+    "www.glassdoor.com",
+    "www.ipchicken.com",
+    "static.cloudflareinsights.com",
+  ];
+}
+
+export function buildSubscriptionHeaders(subName) {
+  const CAKE_INFO = { total_TB: 380, base_GB: 42000, daily_growth_GB: 250 };
+  const GB_in_bytes = 1024 * 1024 * 1024;
+  const TB_in_bytes = 1024 * GB_in_bytes;
+  const total_bytes = CAKE_INFO.total_TB * TB_in_bytes;
+  const base_bytes = CAKE_INFO.base_GB * GB_in_bytes;
+  const now = new Date();
+  const hours_passed = now.getHours() + now.getMinutes() / 60;
+  const daily_growth_bytes = (hours_passed / 24) * (CAKE_INFO.daily_growth_GB * GB_in_bytes);
+  const cake_download = base_bytes + daily_growth_bytes / 2;
+  const cake_upload = base_bytes + daily_growth_bytes / 2;
+  const expire_timestamp = Math.floor(Date.now() / 1000) + 2 * 365 * 24 * 60 * 60;
+  const subInfo = `upload=${Math.round(cake_upload)}; download=${Math.round(cake_download)}; total=${total_bytes}; expire=${expire_timestamp}`;
+  const headers = {
+    "Profile-Update-Interval": "8",
+    "Subscription-Userinfo": subInfo,
+  };
+  if (subName) headers["Profile-Title"] = subName;
+  return headers;
+}
