@@ -1,6 +1,7 @@
 import init, { processVlessHeader } from "./pkg/zr_wasm.js";
 import wasm from "./pkg/zr_wasm_bg.wasm";
 import { Config } from "./src/core.js";
+import { handleClashConfig } from "./src/clash.js";
 import { ProtocolOverWSHandler } from "./src/network.js";
 import { handleConfigPage, handleIpSubscription, handleMyConnection, handleResolveDomain } from "./src/routes.js";
 
