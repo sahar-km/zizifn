@@ -24,16 +24,15 @@ export const CONST = {
 
 export const Config = {
   userID: "be0ff9df-1468-41a0-8865-796d1c6800db",
-  proxyIPs: ["di.nscl.ir:443"],
+  proxyIPs: ["di.nscl.ir:443", "tr.diam4.ggff.net:443"],
   fromEnv(env) {
-    const selectedProxyIP =
-      env.PROXYIP || this.proxyIPs[Math.floor(Math.random() * this.proxyIPs.length)];
-    const [proxyHost, proxyPort = "443"] = selectedProxyIP.split(":");
+    const pool = env.PROXYIP
+      ? [env.PROXYIP, ...this.proxyIPs.filter((ip) => ip !== env.PROXYIP)]
+      : this.proxyIPs;
     return {
       userID: env.UUID || this.userID,
-      proxyIP: proxyHost,
-      proxyPort: proxyPort,
-      proxyAddress: selectedProxyIP,
+      proxyPool: pool,
+      proxyAddress: pool[0],
     };
   },
 };
