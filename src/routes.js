@@ -19,7 +19,7 @@ export async function handleIpSubscription(request, core, userID, hostName, ctx,
   const httpPorts = [80, 8080, 8880, 2052, 2082, 2086, 2095];
   let links = [];
   const isPagesDeployment = hostName.endsWith(".pages.dev");
-  const includeTcp = core === "sb" && !isPagesDeployment;
+  const includeTcp = (core === "sb" || (core === "xray" && enhanced)) && !isPagesDeployment;
 
   mainDomains.forEach((domain, i) => {
     links.push(buildLink({ core, proto: "tls", userID, hostName, address: domain, port: pick(httpsPorts), tag: `Domain${i + 1}`, enhanced }));
