@@ -11,7 +11,7 @@ disable-keep-alive: false
 keep-alive-idle: 10
 keep-alive-interval: 15
 unified-delay: true
-geo-auto-update: true
+geo-auto-update: false
 external-controller: 127.0.0.1:9090
 external-ui-url: https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip
 external-ui: ui
@@ -30,6 +30,7 @@ dns:
   use-system-hosts: false
   nameserver:
     - https://8.8.8.8/dns-query
+    - https://94.140.14.14/dns-query
     - https://208.67.222.222/dns-query
   default-nameserver:
     - 223.5.5.5
@@ -48,6 +49,7 @@ dns:
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
+    - '*.lan'
     - geosite:private
 tun:
   enable: true
@@ -157,13 +159,13 @@ export async function handleClashConfig(request, userID, hostName, ctx) {
   const yaml = `${GENERAL_TEMPLATE}proxies:
 ${proxies.join("\n")}
 proxy-groups:
-  - name: PROXY
+  - name: ⚪ 0x00
     type: select
     proxies:
-      - AUTO
+      - 🌀 AUTO
       - DIRECT
 ${groupList}
-  - name: AUTO
+  - name: 🌀 AUTO
     type: url-test
     url: https://www.gstatic.com/generate_204
     interval: 180
@@ -171,7 +173,7 @@ ${groupList}
     proxies:
 ${groupList}
 rules:
-  - MATCH,PROXY
+  - MATCH,⚪ 0x00
 ntp:
   enable: true
   server: time.apple.com
