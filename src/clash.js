@@ -31,19 +31,19 @@ dns:
   nameserver:
     - https://8.8.8.8/dns-query
     - https://208.67.222.222/dns-query
-  proxy-server-nameserver:
-    - 8.8.8.8
+  default-nameserver:
+    - 223.5.5.5
   nameserver-policy:
     raw.githubusercontent.com: 8.8.8.8
     time.apple.com: 8.8.8.8
     www.gstatic.com: system
-    rule-set:ir:
-      - 8.8.8.8#DIRECT
-  
-    
+  proxy-server-nameserver:
+    - 8.8.8.8
+    - 223.5.5.5
   fallback:
     - tls://1.1.1.1
     - tcp://8.8.8.8
+    - udp://223.5.5.5
     - tls://dns.quad9.net
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
