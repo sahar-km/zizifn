@@ -31,6 +31,16 @@ dns:
   nameserver:
     - https://8.8.8.8/dns-query
     - https://208.67.222.222/dns-query
+  proxy-server-nameserver:
+    - 8.8.8.8
+  nameserver-policy:
+    raw.githubusercontent.com: 8.8.8.8
+    time.apple.com: 8.8.8.8
+    www.gstatic.com: system
+    rule-set:ir:
+      - 8.8.8.8#DIRECT
+  
+    
   fallback:
     - tls://1.1.1.1
     - tcp://8.8.8.8
@@ -162,6 +172,11 @@ ${groupList}
 ${groupList}
 rules:
   - MATCH,PROXY
+ntp:
+  enable: true
+  server: time.apple.com
+  port: 123
+  interval: 30
 `;
 
   return new Response(yaml, {
