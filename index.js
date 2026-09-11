@@ -21,8 +21,7 @@ export default {
         await ensureWasm();
         return ProtocolOverWSHandler(request, {
           userID: cfg.userID,
-          proxyIP: cfg.proxyIP,
-          proxyPort: cfg.proxyPort,
+          proxyPool: cfg.proxyPool,
         });
       }
 
