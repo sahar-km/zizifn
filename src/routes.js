@@ -115,6 +115,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress) {
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
   const subXrayUrlV = `https://${hostName}/xray/${userID}#${encodedSubName}`;
   const subXrayUrlVEnhanced = `https://${hostName}/xray-enhanced/${userID}#${encodedSubName}`;
+  const subClashUrl = `https://${hostName}/clash/${userID}?name=${encodedSubName}`;
   const subSbUrl = `https://${hostName}/sb/${userID}?name=${encodedSubName}`;
 
     const finalHTML = panelHtml
@@ -124,7 +125,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress) {
     .replace(/{{URL_HIDDIFY}}/g, `hiddify://install-config?url=${encodeURIComponent(subXrayUrlH)}`)
     .replace(/{{URL_V2RAYNG}}/g, `v2rayng://install-config?url=${subXrayUrlV}`)
     .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `v2rayng://install-config?url=${subXrayUrlVEnhanced}`)
-    .replace(/{{URL_CLASH}}/g, `clash://install-config?url=${encodeURIComponent(`https://${hostName}/clash/${userID}`)}`)
+    .replace(/{{URL_CLASH}}/g, `clash://install-config?url=${encodeURIComponent(subClashUrl)}`)
     .replace(/{{URL_EXCLAVE}}/g, `sn://subscription?url=${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
 
   return new Response(finalHTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
