@@ -65,6 +65,13 @@ export const CORE_PRESETS = {
       alpn: "http/1.1",
       extra: {},
     },
+    tcp: {
+      path: () => generateRandomPath(12, "ed=2048"),
+      security: "none",
+      fp: "chrome",
+      alpn: "http/1.1",
+      extra: {},
+    },
   },
   sb: {
     tls: {
@@ -74,13 +81,6 @@ export const CORE_PRESETS = {
       alpn: "http/1.1",
       extra: CONST.ED_PARAMS,
     },
-    tcp: {
-      path: () => generateRandomPath(18),
-      security: "none",
-      fp: "chrome",
-      extra: CONST.ED_PARAMS,
-    },
-  },
 };
 
 export function makeName(tag, proto) {
@@ -96,7 +96,7 @@ export function createVlessLink({
   if (fp) params.set("fp", fp);
   if (alpn) params.set("alpn", alpn);
   if (enhanced) {
-    params.set("cs", CONST.CIPHER_SUITES);
+    if (security === "tls") params.set("cs", CONST.CIPHER_SUITES);
     params.set("fm", CONST.FINAL_MASK);
   }
   for (const [k, v] of Object.entries(extra)) params.set(k, v);
@@ -107,7 +107,8 @@ export function buildLink({ core, proto, userID, hostName, address, port, tag, e
   const p = CORE_PRESETS[core][proto];
   return createVlessLink({
     userID, address, port, host: hostName, path: p.path(), security: p.security,
-    sni: p.security === "tls" ? hostName : undefined, fp: enhanced ? "unsafe" : p.fp,
+    sni: p.security === "tls" ? hostName : undefined,
+    fp: enhanced && p.security === "tls" ? "unsafe" : p.fp,
     alpn: p.alpn, extra: p.extra, enhanced,
     name: makeName(tag, proto) + (enhanced ? "-Enhanced" : ""),
   });
