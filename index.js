@@ -33,6 +33,8 @@ export default {
         return handleIpSubscription(request, "xray", cfg.userID, url.hostname, ctx, false);
       if (url.pathname.startsWith(`/sb/${cfg.userID}`))
         return handleIpSubscription(request, "sb", cfg.userID, url.hostname, ctx);
+      if (url.pathname.startsWith(`/clash/${cfg.userID}`))
+        return handleClashConfig(request, cfg.userID, url.hostname, ctx);
       if (url.pathname.startsWith(`/${cfg.userID}`))
         return handleConfigPage(cfg.userID, url.hostname, cfg.proxyAddress);
 
