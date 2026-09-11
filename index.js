@@ -1,10 +1,14 @@
-import init from "./pkg/zr_wasm.js";
+import init, { processVlessHeader } from "./pkg/zr_wasm.js";
 import wasm from "./pkg/zr_wasm_bg.wasm";
 import { Config } from "./src/core.js";
 import { ProtocolOverWSHandler } from "./src/network.js";
 import { handleConfigPage, handleIpSubscription, handleMyConnection, handleResolveDomain } from "./src/routes.js";
 
-await init(wasm);
+let wasmReady = null;
+function ensureWasm() {
+  if (!wasmReady) wasmReady = init(wasm);
+  return wasmReady;
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -14,6 +18,7 @@ export default {
       const upgradeHeader = request.headers.get("Upgrade");
 
       if (upgradeHeader && upgradeHeader.toLowerCase() === "websocket") {
+        await ensureWasm();
         return ProtocolOverWSHandler(request, {
           userID: cfg.userID,
           proxyIP: cfg.proxyIP,
