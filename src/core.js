@@ -81,7 +81,8 @@ export const CORE_PRESETS = {
       alpn: "http/1.1",
       extra: CONST.ED_PARAMS,
     },
-};
+  }
+}
 
 export function makeName(tag, proto) {
   return `${tag}-${proto.toUpperCase()}`;
