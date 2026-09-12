@@ -123,16 +123,16 @@ export async function handleClashConfig(request, userID, hostName, ctx) {
   const proxies = [];
   const names = [];
 
-  const addPair = (label, server) => {
+  const addPair = (label, server, includeTcp = true) => {
     proxies.push(clashProxyBlock({ name: `${label}-TLS`, server, port: pick(httpsPorts), uuid: userID, hostName, tls: true }));
     names.push(`${label}-TLS`);
-    if (!isPagesDeployment) {
+    if (includeTcp && !isPagesDeployment) {
       proxies.push(clashProxyBlock({ name: `${label}-TCP`, server, port: pick(httpPorts), uuid: userID, hostName, tls: false }));
       names.push(`${label}-TCP`);
     }
   };
 
-  buildMainDomains(hostName).forEach((domain, i) => addPair(`Domain${i + 1}`, domain));
+  buildMainDomains(hostName).forEach((domain, i) => addPair(`Domain${i + 1}`, domain, false));
 
   try {
     const cache = caches.default;
@@ -162,10 +162,10 @@ proxy-groups:
   - name: ⚪ 0x00
     type: select
     proxies:
-      - 🌀 AUTO
+      - 🟢 AUTO
       - DIRECT
 ${groupList}
-  - name: 🌀 AUTO
+  - name: 🟢 AUTO
     type: url-test
     url: https://www.gstatic.com/generate_204
     interval: 180
