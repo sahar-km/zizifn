@@ -15,9 +15,6 @@ export async function handleIpSubscription(request, core, userID, hostName, ctx,
 
   mainDomains.forEach((domain, i) => {
     links.push(buildLink({ core, proto: "tls", userID, hostName, address: domain, port: pick(httpsPorts), tag: `Domain${i + 1}`, enhanced }));
-    if (includeTcp) {
-      links.push(buildLink({ core, proto: "tcp", userID, hostName, address: domain, port: pick(httpPorts), tag: `Domain${i + 1}`, enhanced }));
-    }
   });
 
   try {
@@ -40,7 +37,7 @@ export async function handleIpSubscription(request, core, userID, hostName, ctx,
         links.push(buildLink({ core, proto: "tls", userID, hostName, address: formattedAddress, port: pick(httpsPorts), tag: `IP${i + 1}`, enhanced }));
         if (includeTcp) {
           links.push(buildLink({ core, proto: "tcp", userID, hostName, address: formattedAddress, port: pick(httpPorts), tag: `IP${i + 1}`, enhanced }));
-       }
+        }
       });
     }
   } catch (e) {
