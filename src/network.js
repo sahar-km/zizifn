@@ -1,5 +1,5 @@
 import { connect } from "cloudflare:sockets";
-import { processVlessHeader } from "../pkg/zr_wasm.js";
+import { processHeader } from "../pkg/zr_wasm.js";
 import { CONST, safeFetch } from "./core.js";
 
 export async function ProtocolOverWSHandler(request, config) {
@@ -31,7 +31,7 @@ export async function ProtocolOverWSHandler(request, config) {
             return;
           }
 
-          const header = processVlessHeader(new Uint8Array(chunk), config.userID);
+          const header = processHeader(new Uint8Array(chunk), config.userID);;
           if (header.has_error) throw new Error(header.message);
 
           address = header.address_remote;
