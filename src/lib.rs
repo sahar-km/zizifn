@@ -12,8 +12,8 @@ pub struct HeaderResult {
     pub version: u8,
 }
 
-#[wasm_bindgen(js_name = processVlessHeader)]
-pub fn process_vless_header(chunk: &[u8], user_ids: &str) -> JsValue {
+#[wasm_bindgen(js_name = processHeader)]
+pub fn process_header(chunk: &[u8], user_ids: &str) -> JsValue {
     let mut result = HeaderResult {
         has_error: true,
         message: "invalid data".to_string(),
