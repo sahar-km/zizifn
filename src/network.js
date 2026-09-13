@@ -45,7 +45,8 @@ export async function ProtocolOverWSHandler(request, config) {
               udpStreamWriter = dnsPipeline.write;
               udpStreamWriter(rawClientData);
             } else {
-              throw new Error("UDP proxy is only enabled for DNS (port 53)");
+              log(`udp:${header.port_remote} not supported (dns-only), closing gently`);
+              safeCloseWebSocket(webSocket);
             }
             return;
           }
