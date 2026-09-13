@@ -3,7 +3,12 @@ import wasm from "./pkg/zr_wasm_bg.wasm";
 import { Config } from "./src/core.js";
 import { handleClashConfig } from "./src/clash.js";
 import { ProtocolOverWSHandler } from "./src/network.js";
-import { handleConfigPage, handleIpSubscription, handleMyConnection, handleResolveDomain } from "./src/routes.js";
+import {
+  handleConfigPage,
+  handleIpSubscription,
+  handleMyConnection,
+  handleResolveDomain,
+} from "./src/routes.js";
 
 let wasmReady = null;
 function ensureWasm() {
@@ -39,7 +44,9 @@ export default {
       if (url.pathname.startsWith(`/${cfg.userID}`))
         return handleConfigPage(cfg.userID, url.hostname, cfg.proxyAddress);
 
-      return new Response("UUID not found. Please set the UUID environment variable.", { status: 404 });
+      return new Response("UUID not found. Please set the UUID environment variable.", {
+        status: 404,
+      });
     } catch (err) {
       return new Response(`Worker Logic Error: ${err.message}\n${err.stack}`, {
         status: 500,
