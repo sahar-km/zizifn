@@ -1,4 +1,5 @@
 import { safeFetch, isInIgnoredRange, generateRandomPath, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
+import { CONST, SENS } from "./core.js";
 
 const GENERAL_TEMPLATE = `mixed-port: 7890
 http-port: 7891
