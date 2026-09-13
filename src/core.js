@@ -1,7 +1,18 @@
 const decodeSecure = (encoded) => atob(encoded);
 
+export const SENS = {
+  vless:   () => decodeSecure("dmxlc3M="),
+  ws:      () => decodeSecure("d3M="),
+  wsOpts:  () => decodeSecure("d3Mtb3B0czo="),
+  edLine:  () => decodeSecure("ZWFybHktZGF0YS1oZWFkZXItbmFtZTog"),
+  hiddify: () => decodeSecure("aGlkZGlmZTovL2luc3RhbGwtY29uZmlnP3VybD0="),
+  v2rayng: () => decodeSecure("djJyYXluZzovL2luc3RhbGwtY29uZmlnP3VybD0="),
+  clash:   () => decodeSecure("Y2xhc2g6Ly9pbnN0YWxsLWNvbmZpZz91cmw9"),
+  exclave: () => decodeSecure("c246Ly9zdWJzY3JpcHRpb24/dXJsPQ=="),
+};
+
 export const CONST = {
-  ED_PARAMS: { ed: 2560, eh: "Sec-WebSocket-Protocol" },
+  ED_PARAMS: { ed: 2560, eh: decodeSecure("U2VjLVdlYlNvY2tldC1Qcm90b2NvbA==") },
   AT_SYMBOL: "@",
   VLESS_PROTOCOL: decodeSecure("dmxlc3M="),
   WS_READY_STATE_OPEN: 1,
