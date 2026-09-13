@@ -2,21 +2,6 @@ name = "insiders"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
-[observability]
-enabled = true
-head_sampling_rate = 1
-
-[observability.logs]
-enabled = true
-head_sampling_rate = 1
-invocation_logs = true
-persist = true
-
-[observability.traces]
-enabled = true
-head_sampling_rate = 1
-persist = true
-
 [build]
 command = "wasm-pack build --target web"
 
@@ -29,3 +14,20 @@ fallthrough = false
 type = "Text"
 globs = ["**/*.b64"]
 fallthrough = true
+
+# Whenever you need to monitor real-time Log's,
+# uncomment these three sections.
+#[observability]
+#enabled = true
+#head_sampling_rate = 1
+
+#[observability.logs]
+#enabled = true
+#head_sampling_rate = 1
+#invocation_logs = true
+#persist = true
+
+#[observability.traces]
+#enabled = true
+#head_sampling_rate = 1
+#persist = true
