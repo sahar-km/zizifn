@@ -59,6 +59,12 @@ export async function safeFetch(url, options = {}, timeout = 4000) {
   }
 }
 
+export function buildSettingsUrl(workerName) {
+  return workerName
+    ? `https://dash.cloudflare.com/?to=/:account/workers/services/view/${workerName}/production/settings`
+    : `https://dash.cloudflare.com/?to=/:account/workers-and-pages`;
+}
+
 export function generateRandomPath(length = 28, query = "") {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
