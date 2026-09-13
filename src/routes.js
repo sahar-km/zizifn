@@ -7,6 +7,7 @@ import {
   SENS,
   buildMainDomains,
   buildSubscriptionHeaders,
+  buildSettingsUrl,
 } from "./core.js";
 import panelB64 from "./panel.b64";
 const panelHtml = atob(panelB64);
@@ -190,10 +191,8 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
     port: 443,
     tag: `${hostName}-Singbox`,
   });
-  const settingsUrl = workerName
-    ? `https://dash.cloudflare.com/?to=/:account/workers/services/view/${workerName}/production/settings`
-    : `https://dash.cloudflare.com/?to=/:account/workers-and-pages`;
 
+  const settingsUrl = buildSettingsUrl(workerName);
   const encodedSubName = encodeURIComponent("INDEX");
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
   const subXrayUrlV = `https://${hostName}/xray/${userID}#${encodedSubName}`;
