@@ -8,8 +8,7 @@ import {
   SENS,
 } from "./core.js";
 
-const GENERAL_TEMPLATE = `mixed-port: 7890
-port: 7890
+const GENERAL_TEMPLATE = `port: 7890
 socks-port: 7891
 mixed-port: 10801
 ipv6: false
