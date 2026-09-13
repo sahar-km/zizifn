@@ -31,7 +31,7 @@ export async function ProtocolOverWSHandler(request, config) {
             return;
           }
 
-          const header = processHeader(new Uint8Array(chunk), config.userID);;
+          const header = processHeader(new Uint8Array(chunk), config.userID);
           if (header.has_error) throw new Error(header.message);
 
           address = header.address_remote;
@@ -52,20 +52,41 @@ export async function ProtocolOverWSHandler(request, config) {
           }
 
           HandleTCPOutBound(
-            remoteSocketWapper, header.address_remote, header.port_remote,
-            rawClientData, webSocket, vlessResponseHeader, log, config,
+            remoteSocketWapper,
+            header.address_remote,
+            header.port_remote,
+            rawClientData,
+            webSocket,
+            vlessResponseHeader,
+            log,
+            config,
           );
         },
-        close() { log(`readableWebSocketStream closed`); },
-        abort(err) { log(`readableWebSocketStream aborted`, err); },
+        close() {
+          log(`readableWebSocketStream closed`);
+        },
+        abort(err) {
+          log(`readableWebSocketStream aborted`, err);
+        },
       }),
     )
-    .catch((err) => { console.error("Pipeline failed:", err.stack || err); });
+    .catch((err) => {
+      console.error("Pipeline failed:", err.stack || err);
+    });
 
   return new Response(null, { status: 101, webSocket: client });
 }
 
-async function HandleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, protocolResponseHeader, log, config) {
+async function HandleTCPOutBound(
+  remoteSocket,
+  addressRemote,
+  portRemote,
+  rawClientData,
+  webSocket,
+  protocolResponseHeader,
+  log,
+  config,
+) {
   async function connectAndWrite(address, port) {
     const tcpSocket = connect({ hostname: address, port: port });
     remoteSocket.value = tcpSocket;
@@ -86,11 +107,23 @@ async function HandleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
     tcpSocket.closed
       .catch((error) => console.log("proxy tcpSocket closed error", error))
       .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, () => retryWithPool(pool, index + 1), log);
+    RemoteSocketToWS(
+      tcpSocket,
+      webSocket,
+      protocolResponseHeader,
+      () => retryWithPool(pool, index + 1),
+      log,
+    );
   }
 
   const tcpSocket = await connectAndWrite(addressRemote, portRemote);
-  RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, () => retryWithPool(config.proxyPool || [], 0), log);
+  RemoteSocketToWS(
+    tcpSocket,
+    webSocket,
+    protocolResponseHeader,
+    () => retryWithPool(config.proxyPool || [], 0),
+    log,
+  );
 }
 
 function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
@@ -120,7 +153,7 @@ function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
 async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader, retry, log) {
   let hasIncomingData = false;
   let headerSent = false;
-  
+
   try {
     await remoteSocket.readable.pipeTo(
       new WritableStream({
@@ -140,8 +173,12 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
 
           webSocket.send(dataToSend);
         },
-        close() { log(`Remote connection readable closed.`); },
-        abort(reason) { console.error(`Remote connection readable aborted:`, reason); },
+        close() {
+          log(`Remote connection readable closed.`);
+        },
+        abort(reason) {
+          console.error(`Remote connection readable aborted:`, reason);
+        },
       }),
     );
   } catch (error) {
@@ -170,7 +207,10 @@ function base64ToArrayBuffer(base64Str) {
 
 function safeCloseWebSocket(socket) {
   try {
-    if (socket.readyState === CONST.WS_READY_STATE_OPEN || socket.readyState === CONST.WS_READY_STATE_CLOSING)
+    if (
+      socket.readyState === CONST.WS_READY_STATE_OPEN ||
+      socket.readyState === CONST.WS_READY_STATE_CLOSING
+    )
       socket.close();
   } catch (error) {
     console.error("safeCloseWebSocket error:", error);
@@ -181,7 +221,7 @@ async function createDnsPipeline(webSocket, vlessResponseHeader, log) {
   let isHeaderSent = false;
   const transformStream = new TransformStream({
     transform(chunk, controller) {
-      for (let index = 0; index < chunk.byteLength; ) {
+      for (let index = 0; index < chunk.byteLength;) {
         const lengthBuffer = chunk.slice(index, index + 2);
         const udpPacketLength = new DataView(lengthBuffer).getUint16(0);
         const udpData = new Uint8Array(chunk.slice(index + 2, index + 2 + udpPacketLength));
@@ -198,18 +238,28 @@ async function createDnsPipeline(webSocket, vlessResponseHeader, log) {
           try {
             const resp = await safeFetch(
               `https://1.1.1.1/dns-query`,
-              { method: "POST", headers: { "content-type": "application/dns-message" }, body: chunk },
+              {
+                method: "POST",
+                headers: { "content-type": "application/dns-message" },
+                body: chunk,
+              },
               4000,
             );
             const dnsQueryResult = await resp.arrayBuffer();
             const udpSize = dnsQueryResult.byteLength;
             const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
-            
+
             if (webSocket.readyState === CONST.WS_READY_STATE_OPEN) {
               if (isHeaderSent) {
                 webSocket.send(await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer());
               } else {
-                webSocket.send(await new Blob([vlessResponseHeader, udpSizeBuffer, dnsQueryResult]).arrayBuffer());
+                webSocket.send(
+                  await new Blob([
+                    vlessResponseHeader,
+                    udpSizeBuffer,
+                    dnsQueryResult,
+                  ]).arrayBuffer(),
+                );
                 isHeaderSent = true;
               }
             }
