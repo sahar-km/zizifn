@@ -1,13 +1,13 @@
 const decodeSecure = (encoded) => atob(encoded);
 
 export const SENS = {
-  vless: () => decodeSecure("dmxlc3M="),
-  ws: () => decodeSecure("d3M="),
-  wsOpts: () => decodeSecure("d3Mtb3B0czo="),
-  edLine: () => decodeSecure("ZWFybHktZGF0YS1oZWFkZXItbmFtZTog"),
+  vless:   () => decodeSecure("dmxlc3M="),
+  ws:      () => decodeSecure("d3M="),
+  wsOpts:  () => decodeSecure("d3Mtb3B0czo="),
+  edLine:  () => decodeSecure("ZWFybHktZGF0YS1oZWFkZXItbmFtZTog"),
   hiddify: () => decodeSecure("aGlkZGlmZTovL2luc3RhbGwtY29uZmlnP3VybD0="),
   v2rayng: () => decodeSecure("djJyYXluZzovL2luc3RhbGwtY29uZmlnP3VybD0="),
-  clash: () => decodeSecure("Y2xhc2g6Ly9pbnN0YWxsLWNvbmZpZz91cmw9"),
+  clash:   () => decodeSecure("Y2xhc2g6Ly9pbnN0YWxsLWNvbmZpZz91cmw9"),
   exclave: () => decodeSecure("c246Ly9zdWJzY3JpcHRpb24/dXJsPQ=="),
 };
 
