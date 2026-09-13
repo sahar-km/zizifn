@@ -1,4 +1,4 @@
-import { buildLink, safeFetch, isInIgnoredRange, pick, CONST, SANS, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
+import { buildLink, safeFetch, isInIgnoredRange, pick, CONST, SENS, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
 import panelB64 from "./panel.b64";
 const panelHtml = atob(panelB64);
 
