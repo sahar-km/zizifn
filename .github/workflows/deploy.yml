@@ -1,4 +1,4 @@
-name: 🧸 Deploy Worker
+name: #️⃣ Deploy Worker
 
 on:
   push:
@@ -60,7 +60,7 @@ jobs:
 
           echo "::add-mask::$UUID_VALUE"
           UUID_SUFFIX="${UUID_VALUE: -4}"
-          UUID_MASKED="••••••••-••••-••••-••••-••••••••-$UUID_SUFFIX"
+          UUID_MASKED="••••••••-••••-••••-$UUID_SUFFIX"
           echo "uuid_masked=$UUID_MASKED" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID_VALUE" >> "$GITHUB_OUTPUT"
 
@@ -136,10 +136,10 @@ jobs:
             echo ""
             echo "Get your UUID from:"
             echo ""
-            echo "Cloudflare Dashboard"
-            echo "▶ Workers & Pages"
-            echo "▶ **${{ steps.worker.outputs.name }}**"
-            echo "▶ Settings ▶ Variables and Secrets"
+            echo "☁️ Cloudflare Dashboard"
+            echo "→ Workers & Pages"
+            echo "→ **${{ steps.worker.outputs.name }}**"
+            echo "→ Settings → Variables and Secrets"
             echo ""
-            echo "[💡 Open Cloudflare Dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages)"
+            echo "💡 [Open Cloudflare Dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages)"
           } >> "$GITHUB_STEP_SUMMARY"
