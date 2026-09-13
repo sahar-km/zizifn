@@ -1,5 +1,5 @@
 import panelHtml from "../index.html";
-import { buildLink, safeFetch, isInIgnoredRange, pick, CONST, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
+import { buildLink, safeFetch, isInIgnoredRange, pick, CONST, SANS, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
 
 export async function handleIpSubscription(request, core, userID, hostName, ctx, enhanced = false) {
   const url = new URL(request.url);
@@ -116,14 +116,14 @@ export async function handleConfigPage(userID, hostName, proxyAddress) {
   const subSbUrl = `https://${hostName}/sb/${userID}?name=${encodedSubName}`;
 
     const finalHTML = panelHtml
-    .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
-    .replace(/{{CONFIG_DREAM}}/g, dream)
-    .replace(/{{CONFIG_FREEDOM}}/g, freedom)
-    .replace(/{{URL_HIDDIFY}}/g, `hiddify://install-config?url=${encodeURIComponent(subXrayUrlH)}`)
-    .replace(/{{URL_V2RAYNG}}/g, `v2rayng://install-config?url=${subXrayUrlV}`)
-    .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `v2rayng://install-config?url=${subXrayUrlVEnhanced}`)
-    .replace(/{{URL_CLASH}}/g, `clash://install-config?url=${encodeURIComponent(subClashUrl)}`)
-    .replace(/{{URL_EXCLAVE}}/g, `sn://subscription?url=${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
-
+      .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
+      .replace(/{{CONFIG_DREAM}}/g, dream)
+      .replace(/{{CONFIG_FREEDOM}}/g, freedom)
+      .replace(/{{URL_HIDDIFY}}/g, `${SENS.hiddify()}${encodeURIComponent(subXrayUrlH)}`)
+      .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
+      .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
+      .replace(/{{URL_CLASH}}/g, `${SENS.clash()}${encodeURIComponent(subClashUrl)}`)
+      .replace(/{{URL_EXCLAVE}}/g, `${SENS.exclave()}${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
+  
   return new Response(finalHTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
