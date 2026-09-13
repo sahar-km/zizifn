@@ -1,13 +1,13 @@
 const decodeSecure = (encoded) => atob(encoded);
 
 export const SENS = {
-  vless:   () => decodeSecure("dmxlc3M="),
-  ws:      () => decodeSecure("d3M="),
-  wsOpts:  () => decodeSecure("d3Mtb3B0czo="),
-  edLine:  () => decodeSecure("ZWFybHktZGF0YS1oZWFkZXItbmFtZTog"),
+  vless: () => decodeSecure("dmxlc3M="),
+  ws: () => decodeSecure("d3M="),
+  wsOpts: () => decodeSecure("d3Mtb3B0czo="),
+  edLine: () => decodeSecure("ZWFybHktZGF0YS1oZWFkZXItbmFtZTog"),
   hiddify: () => decodeSecure("aGlkZGlmZTovL2luc3RhbGwtY29uZmlnP3VybD0="),
   v2rayng: () => decodeSecure("djJyYXluZzovL2luc3RhbGwtY29uZmlnP3VybD0="),
-  clash:   () => decodeSecure("Y2xhc2g6Ly9pbnN0YWxsLWNvbmZpZz91cmw9"),
+  clash: () => decodeSecure("Y2xhc2g6Ly9pbnN0YWxsLWNvbmZpZz91cmw9"),
   exclave: () => decodeSecure("c246Ly9zdWJzY3JpcHRpb24/dXJsPQ=="),
 };
 
@@ -92,15 +92,26 @@ export const CORE_PRESETS = {
       alpn: "http/1.1",
       extra: CONST.ED_PARAMS,
     },
-  }
-}
+  },
+};
 
 export function makeName(tag, proto) {
   return `${tag}-${proto.toUpperCase()}`;
 }
 
 export function createVlessLink({
-  userID, address, port, host, path, security, sni, fp, alpn, extra = {}, enhanced = false, name,
+  userID,
+  address,
+  port,
+  host,
+  path,
+  security,
+  sni,
+  fp,
+  alpn,
+  extra = {},
+  enhanced = false,
+  name,
 }) {
   const params = new URLSearchParams({ type: decodeSecure("d3M="), host, path });
   if (security) params.set("security", security);
@@ -118,10 +129,17 @@ export function createVlessLink({
 export function buildLink({ core, proto, userID, hostName, address, port, tag, enhanced = false }) {
   const p = CORE_PRESETS[core][proto];
   return createVlessLink({
-    userID, address, port, host: hostName, path: p.path(), security: p.security,
+    userID,
+    address,
+    port,
+    host: hostName,
+    path: p.path(),
+    security: p.security,
     sni: p.security === "tls" ? hostName : undefined,
     fp: enhanced && p.security === "tls" ? "unsafe" : p.fp,
-    alpn: p.alpn, extra: p.extra, enhanced,
+    alpn: p.alpn,
+    extra: p.extra,
+    enhanced,
     name: makeName(tag, proto) + (enhanced ? "-Enhanced" : ""),
   });
 }
