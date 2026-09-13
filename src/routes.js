@@ -1,5 +1,6 @@
-import panelHtml from "../index.html";
 import { buildLink, safeFetch, isInIgnoredRange, pick, CONST, SANS, buildMainDomains, buildSubscriptionHeaders } from "./core.js";
+import panelB64 from "./panel.b64";
+const panelHtml = atob(panelB64);
 
 export async function handleIpSubscription(request, core, userID, hostName, ctx, enhanced = false) {
   const url = new URL(request.url);
