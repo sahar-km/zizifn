@@ -15,7 +15,7 @@ export async function ProtocolOverWSHandler(request, config) {
     console.log(`[${address}:${portWithRandomLog}] ${info}`, event || "");
   };
 
-  const earlyDataHeader = request.headers.get("Sec-WebSocket-Protocol") || "";
+  const earlyDataHeader = request.headers.get(CONST.ED_PARAMS.eh) || "";
   const readableWebSocketStream = MakeReadableWebSocketStream(webSocket, earlyDataHeader, log);
   let remoteSocketWapper = { value: null };
 
