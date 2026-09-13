@@ -1,50 +1,52 @@
 # Serverless Runtime
 
 > [!NOTE]
-> 
->  [● توضیحات به زبان فارسی][fa]
 >
->  [● توضیحات به زبان انگلیسی][en]
+> [◀ توضیحات به زبان فارسی][fa]
+>
+> [◀ توضیحات به زبان انگلیسی][en]
 >
 > <br><br/>
-> 
-> <br><br/>
 
-<br><br/>	
-
-
-
+<br/>
 
 ## Setup
 
 After forking this repository, you need to create a few GitHub repository secrets before running the workflow.
 
-Go to:
+**Go to:**
 
-**Repository → Settings → Secrets and variables → Actions**
+**Your Repository ▶ Settings ▶ Secrets and variables ▶ Actions**
 
 Then click **New repository secret** and add the following variables.
 
-| Secret Name | Required | Default | Description |
-|-------------|:--------:|---------|-------------|
-| `CLOUDFLARE_API_TOKEN` | ✔️Yes | - | Your Cloudflare API Token. It **must** have permission to **Edit Workers**. |
-| `CLOUDFLARE_ACCOUNT_ID` | ✔️Yes | - | Your Cloudflare Account ID. |
-| `UUID` | Optional | `be0ff9df-1468-41a0-8865-796d1c6800db` | Your own [version4 UUID][1]. If not provided, the workflow will automatically use the default value. |
-| `PROXYIP` | Optional | `di.nscl.ir` | Optional proxy IP or hostname. If omitted, the default value will be used. |
+| **Secret Name**         | **Required** | **Default**                            | **Description**                                                                                       |
+| ----------------------- | :----------: | -------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  |    ✔️Yes     | -                                      | Your Cloudflare Account API Token. It **must** have permission to **Edit Workers**.                   |
+| `CLOUDFLARE_ACCOUNT_ID` |    ✔️Yes     | -                                      | Your Cloudflare Account ID.                                                                           |
+| `UUID`                  |   Optional   | `be0ff9df-1468-41a0-8865-796d1c6800db` | Your own [Version-4 UUID][1]. If not provided, the workflow will automatically generate a random one. |
+| `PROXYIP`               |   Optional   | `di.nscl.ir`                           | Optional proxy IP or hostname. If omitted, the default value will be used. [ProxyIP tools][2]         |
 
 ## Required Cloudflare Information
 
-The following two secrets are **required** and must be obtained from your own Cloudflare account:
+The following two secrets are **required** and must be obtained from your own [Cloudflare account][3]:
 
 - `CLOUDFLARE_API_TOKEN`
 - `CLOUDFLARE_ACCOUNT_ID`
 
-> **Note**
->
+> [_**More details**_][4]
+
+<br/>
+
+### NOTE
+
 > The API Token must include permission to **Edit Workers**. Otherwise, the deployment workflow will fail.
 
 Once these secrets have been added, the GitHub Actions workflow is ready to deploy.
 
 [1]: https://www.uuidgenerator.net
+[2]: https://github.com/NiREvil/vless/blob/main/sub/ProxyIP.md
+[3]: https://dash.cloudflare.com/?to=/:account/api-tokens/create
+[4]: https://diana-cl.github.io/Diana-Cl/en/topics/zizifn#token-time
 [fa]: https://diana-cl.github.io/Diana-Cl/topics/zizifn
 [en]: https://diana-cl.github.io/Diana-Cl/en/topics/zizifn
