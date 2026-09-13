@@ -171,7 +171,7 @@ export async function handleResolveDomain(request) {
   }
 }
 
-export async function handleConfigPage(userID, hostName, proxyAddress) {
+export async function handleConfigPage(userID, hostName, proxyAddress, workerName) {
   const dream = buildLink({
     core: "xray",
     proto: "tls",
@@ -190,6 +190,9 @@ export async function handleConfigPage(userID, hostName, proxyAddress) {
     port: 443,
     tag: `${hostName}-Singbox`,
   });
+  const settingsUrl = workerName
+    ? `https://dash.cloudflare.com/?to=/:account/workers/services/view/${workerName}/production/settings`
+    : `https://dash.cloudflare.com/?to=/:account/workers-and-pages`;
 
   const encodedSubName = encodeURIComponent("INDEX");
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
@@ -202,10 +205,11 @@ export async function handleConfigPage(userID, hostName, proxyAddress) {
     .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
     .replace(/{{CONFIG_DREAM}}/g, dream)
     .replace(/{{CONFIG_FREEDOM}}/g, freedom)
-    .replace(/{{URL_HIDDIFY}}/g, `${SENS.hiddify()}${encodeURIComponent(subXrayUrlH)}`)
+    .replace(/{{URL_WORKER_SETTINGS}}/g, settingsUrl)
     .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
     .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
     .replace(/{{URL_CLASH}}/g, `${SENS.clash()}${encodeURIComponent(subClashUrl)}`)
+    .replace(/{{URL_HIDDIFY}}/g, `${SENS.hiddify()}${encodeURIComponent(subXrayUrlH)}`)
     .replace(/{{URL_EXCLAVE}}/g, `${SENS.exclave()}${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
 
   return new Response(finalHTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
