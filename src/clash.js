@@ -89,24 +89,24 @@ sniffer:
 function clashProxyBlock({ name, server, port, uuid, hostName, tls }) {
   const path = generateRandomPath(18);
   const lines = [
-    `  - name: ${name}`,
-    `    type: vless`,
-    `    server: ${server}`,
-    `    port: ${port}`,
-    `    uuid: ${uuid}`,
-    `    tls: ${tls}`,
+  `  - name: ${name}`,
+  `    type: ${SENS.vless()}`,
+  `    server: ${server}`,
+  `    port: ${port}`,
+  `    uuid: ${uuid}`,
+  `    tls: ${tls}`,
   ];
   if (tls) lines.push(`    servername: ${hostName}`, `    alpn:`, `      - http/1.1`);
   lines.push(
-    `    client-fingerprint: chrome`,
-    `    network: ws`,
-    `    ws-opts:`,
-    `      path: ${path}`,
-    `      headers:`,
-    `        host: ${hostName}`,
-    `      max-early-data: 2560`,
-    `      early-data-header-name: Sec-WebSocket-Protocol`,
-    `    udp: true`,
+  `    client-fingerprint: chrome`,
+  `    network: ${SENS.ws()}`,
+  `    ${SENS.wsOpts()}`,
+  `      path: ${path}`,
+  `      headers:`,
+  `        host: ${hostName}`,
+  `      max-early-data: ${CONST.ED_PARAMS.ed}`,
+  `      ${SENS.edLine()}${CONST.ED_PARAMS.eh}`,
+  `    udp: true`,
   );
   if (tls) lines.push(`    skip-cert-verify: true`);
   return lines.join("\n");
