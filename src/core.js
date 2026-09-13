@@ -23,11 +23,11 @@ export const CONST = {
     tcp: [
       {
         type: "fragment",
-        settings: { packets: "tlshello", lengths: ["5", "94", "1"], delays: ["0"], maxSplit: "0" },
+        settings: { packets: "tlshello", lengths: ["0", "104", "1"], delays: ["0"], maxSplit: "0" },
       },
       {
         type: "fragment",
-        settings: { packets: "1-1", lengths: ["109", "1"], delays: ["1"], maxSplit: "355" },
+        settings: { packets: "1-1", lengths: ["114", "1"], delays: ["1"], maxSplit: "11" },
       },
     ],
   }),
@@ -44,6 +44,7 @@ export const Config = {
       userID: env.UUID || this.userID,
       proxyPool: pool,
       proxyAddress: pool[0],
+      workerName: env.WORKERNAME || "",
     };
   },
 };
