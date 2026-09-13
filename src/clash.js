@@ -1,8 +1,17 @@
-import { safeFetch, isInIgnoredRange, generateRandomPath, buildMainDomains, buildSubscriptionHeaders, CONST, SENS } from "./core.js";
+import {
+  safeFetch,
+  isInIgnoredRange,
+  generateRandomPath,
+  buildMainDomains,
+  buildSubscriptionHeaders,
+  CONST,
+  SENS,
+} from "./core.js";
 
 const GENERAL_TEMPLATE = `mixed-port: 7890
-http-port: 7891
-socks-port: 7892
+port: 7890
+socks-port: 7891
+mixed-port: 10801
 ipv6: false
 allow-lan: true
 mode: rule
@@ -12,9 +21,11 @@ keep-alive-idle: 10
 keep-alive-interval: 15
 unified-delay: true
 geo-auto-update: false
-external-controller: 127.0.0.1:9090
-external-ui-url: https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip
-external-ui: ui
+external-ui: /path/to/ui/folder/
+external-controller-unix: mihomo.sock
+external-ui-name: xd
+external-controller: 0.0.0.0:9093
+external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
 external-controller-cors:
   allow-origins:
     - '*'
@@ -33,7 +44,9 @@ dns:
     - https://94.140.14.14/dns-query
     - https://208.67.222.222/dns-query
   default-nameserver:
+    - 8.8.8.8
     - 223.5.5.5
+    - system
   nameserver-policy:
     raw.githubusercontent.com: 8.8.8.8
     time.apple.com: 8.8.8.8
@@ -89,24 +102,24 @@ sniffer:
 function clashProxyBlock({ name, server, port, uuid, hostName, tls }) {
   const path = generateRandomPath(18);
   const lines = [
-  `  - name: ${name}`,
-  `    type: ${SENS.vless()}`,
-  `    server: ${server}`,
-  `    port: ${port}`,
-  `    uuid: ${uuid}`,
-  `    tls: ${tls}`,
+    `  - name: ${name}`,
+    `    type: ${SENS.vless()}`,
+    `    server: ${server}`,
+    `    port: ${port}`,
+    `    uuid: ${uuid}`,
+    `    tls: ${tls}`,
   ];
   if (tls) lines.push(`    servername: ${hostName}`, `    alpn:`, `      - http/1.1`);
   lines.push(
-  `    client-fingerprint: chrome`,
-  `    network: ${SENS.ws()}`,
-  `    ${SENS.wsOpts()}`,
-  `      path: ${path}`,
-  `      headers:`,
-  `        host: ${hostName}`,
-  `      max-early-data: ${CONST.ED_PARAMS.ed}`,
-  `      ${SENS.edLine()}${CONST.ED_PARAMS.eh}`,
-  `    udp: true`,
+    `    client-fingerprint: chrome`,
+    `    network: ${SENS.ws()}`,
+    `    ${SENS.wsOpts()}`,
+    `      path: ${path}`,
+    `      headers:`,
+    `        host: ${hostName}`,
+    `      max-early-data: ${CONST.ED_PARAMS.ed}`,
+    `      ${SENS.edLine()}${CONST.ED_PARAMS.eh}`,
+    `    udp: true`,
   );
   if (tls) lines.push(`    skip-cert-verify: true`);
   return lines.join("\n");
@@ -124,10 +137,28 @@ export async function handleClashConfig(request, userID, hostName, ctx) {
   const names = [];
 
   const addPair = (label, server, includeTcp = true) => {
-    proxies.push(clashProxyBlock({ name: `${label}-TLS`, server, port: pick(httpsPorts), uuid: userID, hostName, tls: true }));
+    proxies.push(
+      clashProxyBlock({
+        name: `${label}-TLS`,
+        server,
+        port: pick(httpsPorts),
+        uuid: userID,
+        hostName,
+        tls: true,
+      }),
+    );
     names.push(`${label}-TLS`);
     if (includeTcp && !isPagesDeployment) {
-      proxies.push(clashProxyBlock({ name: `${label}-TCP`, server, port: pick(httpPorts), uuid: userID, hostName, tls: false }));
+      proxies.push(
+        clashProxyBlock({
+          name: `${label}-TCP`,
+          server,
+          port: pick(httpPorts),
+          uuid: userID,
+          hostName,
+          tls: false,
+        }),
+      );
       names.push(`${label}-TCP`);
     }
   };
@@ -139,15 +170,24 @@ export async function handleClashConfig(request, userID, hostName, ctx) {
     const cacheKey = new Request("https://cf-ip-cache.local");
     let response = await cache.match(cacheKey);
     if (!response) {
-      const r = await safeFetch("https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/Cloudflare-IPs.json", {}, 4000);
+      const r = await safeFetch(
+        "https://raw.githubusercontent.com/NiREvil/vless/refs/heads/main/Cloudflare-IPs.json",
+        {},
+        4000,
+      );
       if (r.ok) {
-        response = new Response(await r.text(), { headers: { "Cache-Control": "public, max-age=86400" } });
+        response = new Response(await r.text(), {
+          headers: { "Cache-Control": "public, max-age=86400" },
+        });
         ctx.waitUntil(cache.put(cacheKey, response.clone()));
       }
     }
     if (response) {
       const json = await response.json();
-      const ips = [...(json.ipv4 || []), ...(json.ipv6 || [])].map((x) => x.ip).filter((v) => !isInIgnoredRange(v)).slice(0, 20);
+      const ips = [...(json.ipv4 || []), ...(json.ipv6 || [])]
+        .map((x) => x.ip)
+        .filter((v) => !isInIgnoredRange(v))
+        .slice(0, 20);
       ips.forEach((ip, i) => addPair(`IP${i + 1}`, ip.includes(":") ? `[${ip}]` : ip));
     }
   } catch (e) {
