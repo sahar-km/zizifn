@@ -1,4 +1,4 @@
-name = "test2"
+name = "insiders"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
@@ -28,4 +28,9 @@ fallthrough = false
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
+fallthrough = true
+
+[[rules]]
+type = "Text"
+globs = ["**/*.b64"]
 fallthrough = true
