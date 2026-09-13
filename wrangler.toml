@@ -27,10 +27,5 @@ fallthrough = false
 
 [[rules]]
 type = "Text"
-globs = ["**/*.html"]
-fallthrough = true
-
-[[rules]]
-type = "Text"
 globs = ["**/*.b64"]
 fallthrough = true
