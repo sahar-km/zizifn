@@ -2,6 +2,10 @@ name = "test2"
 main = "index.js"
 compatibility_date = "2025-09-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [observability.logs]
 enabled = true
 head_sampling_rate = 1
