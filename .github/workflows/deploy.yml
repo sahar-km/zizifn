@@ -23,16 +23,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: 🛒 Checkout code
+      - name: ▶ Checkout code
         uses: actions/checkout@v7
 
-      - name: ®️ Install Rust
+      - name: ▶ Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: 🛠️ Install wasm-pack
+      - name: ▶ Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: 🔏 Resolve UUID
+      - name: ▶ Resolve UUID
         id: uuidval
         env:
           INPUT_UUID: ${{ inputs.uuid }}
@@ -64,7 +64,7 @@ jobs:
           echo "uuid_masked=$UUID_MASKED" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID_VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: 🔎 Resolve PROXYIP
+      - name: ▶ Resolve PROXYIP
         id: proxyval
         env:
           INPUT_PROXYIP: ${{ inputs.proxyip }}
@@ -79,7 +79,7 @@ jobs:
           fi
           echo "proxyip=$PROXY_VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: 🔎 Resolve worker name
+      - name: ▶ Resolve worker name
         id: worker
         run: |
           DEFAULT_NAME=$(grep -m1 '^name' wrangler.toml | sed -E 's/name[[:space:]]*=[[:space:]]*"(.*)"/\1/')
@@ -87,10 +87,10 @@ jobs:
           if [ -z "$NAME" ]; then NAME="$DEFAULT_NAME"; fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
-      - name: 🎭 Encode panel
+      - name: ▶ Encode panel
         run: base64 -w0 index.html > src/panel.b64
 
-      - name: "🪟 Deploy via Wrangler Action (${{ steps.worker.outputs.name }})"
+      - name: "▶ Deploy via Wrangler Action (${{ steps.worker.outputs.name }})"
         id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
@@ -100,11 +100,13 @@ jobs:
           vars: |
             UUID
             PROXYIP
+            WORKERNAME
         env:
           UUID: ${{ steps.uuidval.outputs.uuid }}
           PROXYIP: ${{ steps.proxyval.outputs.proxyip }}
+          WORKERNAME: ${{ steps.worker.outputs.name }}
 
-      - name: 📋 Deployment Summary
+      - name: ▶ Deployment Summary
         run: |
           BASE_URL="${{ steps.deploy.outputs.deployment-url }}"
           BASE_URL="${BASE_URL%/}"
