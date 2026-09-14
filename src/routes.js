@@ -10,7 +10,8 @@ import {
   buildSettingsUrl,
 } from "./core.js";
 import panelB64 from "./panel.b64";
-const panelHtml = atob(panelB64);
+const panelBytes = Uint8Array.from(atob(panelB64), (c) => c.charCodeAt(0));
+const panelHtml = new TextDecoder("utf-8").decode(panelBytes);
 
 export async function handleIpSubscription(request, core, userID, hostName, ctx, enhanced = false) {
   const url = new URL(request.url);
