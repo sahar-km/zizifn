@@ -194,7 +194,8 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   });
 
   const settingsUrl = buildSettingsUrl(workerName);
-  const encodedSubName = encodeURIComponent("INDEX");
+  const workerLabel = hostName.split(".")[0] || "INDEX";
+  const encodedSubName = encodeURIComponent(workerLabel);
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
   const subXrayUrlV = `https://${hostName}/xray/${userID}#${encodedSubName}`;
   const subXrayUrlVEnhanced = `https://${hostName}/xray-enhanced/${userID}#${encodedSubName}`;
@@ -202,15 +203,15 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   const subSbUrl = `https://${hostName}/sb/${userID}?name=${encodedSubName}`;
 
   const finalHTML = panelHtml
-    .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
-    .replace(/{{CONFIG_DREAM}}/g, dream)
-    .replace(/{{CONFIG_FREEDOM}}/g, freedom)
-    .replace(/{{URL_WORKER_SETTINGS}}/g, settingsUrl)
-    .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
-    .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
-    .replace(/{{URL_CLASH}}/g, `${SENS.clash()}${encodeURIComponent(subClashUrl)}`)
-    .replace(/{{URL_HIDDIFY}}/g, `${SENS.hiddify()}${encodeURIComponent(subXrayUrlH)}`)
-    .replace(/{{URL_EXCLAVE}}/g, `${SENS.exclave()}${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
+  .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
+  .replace(/{{CONFIG_DREAM}}/g, dream)
+  .replace(/{{CONFIG_FREEDOM}}/g, freedom)
+  .replace(/{{URL_WORKER_SETTINGS}}/g, settingsUrl)
+  .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
+  .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
+  .replace(/{{URL_CLASH}}/g, `${SENS.clash()}${encodeURIComponent(subClashUrl)}`)
+  .replace(/{{URL_HIDDIFY}}/g, `${SENS.hiddify()}${encodeURIComponent(subXrayUrlH)}`)
+  .replace(/{{URL_EXCLAVE}}/g, `${SENS.exclave()}${encodeURIComponent(subSbUrl)}&name=${encodedSubName}`);
 
   return new Response(finalHTML, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
