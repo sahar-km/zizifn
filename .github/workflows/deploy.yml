@@ -1,4 +1,4 @@
-name: Deploy Worker
+name: ⚪ Deploy Worker
 
 on:
   push:
@@ -7,32 +7,32 @@ on:
   workflow_dispatch:
     inputs:
       workername:
-        description: 'Optional: Enter a specific Worker name for this run (lowercase only)'
+        description: "Optional: Enter a specific Worker name for this run (lowercase only)"
         required: false
-        default: '0x00'
+        default: "0x00"
       proxyip:
-        description: 'Optional: Enter a specific Proxy IP/host for this run'
+        description: "Optional: Enter a specific Proxy IP/host for this run"
         required: false
-        default: 'di.nscl.ir'
+        default: di.nscl.ir
       uuid:
-        description: 'Optional: Enter a specific UUID for this run (leave blank to generate a random one)'
+        description: "Optional: Enter a specific UUID for this run (leave blank to generate a random one)"
         required: false
-        default: ''
+        default: ""
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: ▶ Checkout code
+        uses: actions/checkout@v7
 
-      - name: Install Rust
+      - name: ▶ Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install wasm-pack
+      - name: ▶ Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Resolve UUID
+      - name: ▶ Resolve UUID
         id: uuidval
         env:
           INPUT_UUID: ${{ inputs.uuid }}
@@ -59,9 +59,12 @@ jobs:
           fi
 
           echo "::add-mask::$UUID_VALUE"
+          UUID_SUFFIX="${UUID_VALUE: -4}"
+          UUID_MASKED="••••••••-••••-••••-$UUID_SUFFIX"
+          echo "uuid_masked=$UUID_MASKED" >> "$GITHUB_OUTPUT"
           echo "uuid=$UUID_VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve PROXYIP
+      - name: ▶ Resolve PROXYIP
         id: proxyval
         env:
           INPUT_PROXYIP: ${{ inputs.proxyip }}
@@ -75,18 +78,19 @@ jobs:
             PROXY_VALUE="di.nscl.ir"
           fi
           echo "proxyip=$PROXY_VALUE" >> "$GITHUB_OUTPUT"
-          echo "PROXYIP in use: \`$PROXY_VALUE\`" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Resolve worker name
+      - name: ▶ Resolve worker name
         id: worker
         run: |
           DEFAULT_NAME=$(grep -m1 '^name' wrangler.toml | sed -E 's/name[[:space:]]*=[[:space:]]*"(.*)"/\1/')
           NAME="${{ inputs.workername }}"
           if [ -z "$NAME" ]; then NAME="$DEFAULT_NAME"; fi
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "### Deploying worker: \`$NAME\`" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: "Deploy via Wrangler Action (${{ steps.worker.outputs.name }})"
+      - name: ▶ Encode panel
+        run: base64 -w0 index.html > src/panel.b64
+
+      - name: "▶ Deploy via Wrangler Action (${{ steps.worker.outputs.name }})"
         id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
@@ -96,35 +100,48 @@ jobs:
           vars: |
             UUID
             PROXYIP
+            WORKERNAME
         env:
           UUID: ${{ steps.uuidval.outputs.uuid }}
           PROXYIP: ${{ steps.proxyval.outputs.proxyip }}
+          WORKERNAME: ${{ steps.worker.outputs.name }}
 
-      - name: Show worker URL
+      - name: ▶ Deployment Summary
         run: |
           BASE_URL="${{ steps.deploy.outputs.deployment-url }}"
           BASE_URL="${BASE_URL%/}"
           {
+            echo "## 🟢 Deployment Successful"
             echo ""
-            echo "## ✅ Deployment Successful."
+            echo "### 📥 Deployment"
             echo ""
-            echo "| | |"
-            echo "|---|----|"
-            echo "| **Worker name** | \`${{ steps.worker.outputs.name }}\` |"
+            echo "| Property | Value |"
+            echo "|:-----|:-----|"
+            echo "| **Worker** | \`${{ steps.worker.outputs.name }}\` |"
             echo "| **Base URL** | $BASE_URL |"
+            echo "| **Status** | Deployed successfully |"
             echo ""
-            echo "> [!WARNING]"
-            echo ">"
-            echo "> 🔒 This repo is public, so the UUID is never printed in these logs."
-            echo ">"
-            echo "> To access the panel, you need your UUID:"
-            echo "> \`$BASE_URL/<UUID>\`"
-            echo ">"
-            echo "> Open your Cloudflare dashboard:"
-            echo ">"
-            echo "> Compute → Workers & Pages → **${{ steps.worker.outputs.name }}** → Settings → Variables and Secrets"
-            echo ">"
-            echo "> Copy your own **UUID**."
-            echo ">"
-            echo "> **[🪩 Click here to log in to Cloudflare](https://dash.cloudflare.com/?to=/:account/workers-and-pages)**"
+            echo "### ⚙️ Configuration"
+            echo ""
+            echo "| Property | Value |"
+            echo "|:-----|:-----|"
+            echo "| **PROXYIP** | \`${{ steps.proxyval.outputs.proxyip }}\` |"
+            echo "| **UUID** | \`${{ steps.uuidval.outputs.uuid_masked }}\` |"
+            echo ""
+            echo "### 🔐 Access to panel"
+            echo ""
+            echo "Your UUID is not displayed because this repository is public."
+            echo ""
+            echo "To access the panel:"
+            echo ""
+            echo "\`$BASE_URL/<UUID>\`"
+            echo ""
+            echo "Get your UUID from:"
+            echo ""
+            echo "☁️ Cloudflare Dashboard"
+            echo "→ Workers & Pages"
+            echo "→ **${{ steps.worker.outputs.name }}**"
+            echo "→ Settings → Variables and Secrets"
+            echo ""
+            echo "💡 [Open Cloudflare Dashboard](https://dash.cloudflare.com/?to=/:account/workers-and-pages)"
           } >> "$GITHUB_STEP_SUMMARY"
