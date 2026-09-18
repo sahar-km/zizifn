@@ -116,7 +116,7 @@ export async function handleMyConnection(request, env, ctx) {
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
           Accept: "application/json",
         },
       },
@@ -193,6 +193,17 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
     tag: `${hostName}-Singbox`,
   });
 
+  const pattng = buildLink({
+    core: "xray",
+    proto: "tls",
+    userID,
+    hostName,
+    address: hostName,
+    port: 443,
+    tag: `${hostName}-PTN`,
+    enhanced: true,
+  });
+
   const settingsUrl = buildSettingsUrl(workerName);
   const workerLabel = hostName.split(".")[0] || "INDEX";
   const encodedSubName = encodeURIComponent(workerLabel);
@@ -206,6 +217,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
   .replace(/{{CONFIG_DREAM}}/g, dream)
   .replace(/{{CONFIG_FREEDOM}}/g, freedom)
+  .replace(/{{CONFIG_PATTNG}}/g, pattng)
   .replace(/{{URL_WORKER_SETTINGS}}/g, settingsUrl)
   .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
   .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
