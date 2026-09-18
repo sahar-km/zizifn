@@ -36,6 +36,8 @@ $${\color{silver} We\space are\space \color{gray} All\space \color{red} REvil}$$
 
 ## $${\color{#94A3B8}\Large Setup}$$
 
+[![⚪ Deploy Worker](https://github.com/sahar-km/zizifn/actions/workflows/deploy.yml/badge.svg)](https://github.com/sahar-km/zizifn/actions/workflows/deploy.yml)  
+
 _After forking this repository, you need to create a few GitHub repository secrets before running the workflow._
 
 $${\color{silver}\large Go \space to:}$$
