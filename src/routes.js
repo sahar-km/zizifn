@@ -183,15 +183,14 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
     port: 443,
     tag: `${hostName}-Xray`,
   });
-  const pattng = buildLink({
-    core: "xray",
+  const freedom = buildLink({
+    core: "sb",
     proto: "tls",
     userID,
     hostName,
     address: hostName,
     port: 443,
-    tag: `${hostName}-PattNG`,
-    enhanced: true,
+    tag: `${hostName}-Singbox`,
   });
 
   const settingsUrl = buildSettingsUrl(workerName);
@@ -206,8 +205,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   const finalHTML = panelHtml
   .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
   .replace(/{{CONFIG_DREAM}}/g, dream)
-  .replace(/{{CONFIG_PATTNG}}/g, pattng)
-  .replace(/{{CONFIG_FREEDOM}}/g, pattng)
+  .replace(/{{CONFIG_FREEDOM}}/g, freedom)
   .replace(/{{URL_WORKER_SETTINGS}}/g, settingsUrl)
   .replace(/{{URL_V2RAYNG_ENHANCED}}/g, `${SENS.v2rayng()}${subXrayUrlVEnhanced}`)
   .replace(/{{URL_V2RAYNG}}/g, `${SENS.v2rayng()}${subXrayUrlV}`)
