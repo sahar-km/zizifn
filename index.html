@@ -296,6 +296,48 @@
         color: #ff9b92 !important;
       }
 
+      .customizer-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      
+      .form-group label {
+        font-size: 11px;
+        color: var(--fgColor-muted);
+      }
+      
+      .custom-select,
+      .custom-input {
+        width: 100%;
+        min-height: 32px;
+        padding: 6px 10px;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--borderColor-default);
+        background: var(--bgColor-inset);
+        color: var(--fgColor-default);
+        font: inherit;
+        font-size: 13px;
+      }
+      
+      .custom-select:focus-visible,
+      .custom-input:focus-visible {
+        outline: 2px solid var(--focus-outline);
+        outline-offset: 1px;
+      }
+      
+      @media (max-width: 640px) {
+        .customizer-grid { grid-template-columns: 1fr; }
+      }
+
       .ip-info-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -716,23 +758,6 @@
               </svg></span>
             <span class="button-text">Import to V2rayNG</span>
           </a>
-        </div>
-      </div>
-
-      <div class="config-card">
-        <div class="config-title">
-          <span>Sing-Box Core Clients</span>
-          <button class="icon-btn" aria-label="Copy configuration" title="Copy configuration" onclick="copyToClipboard(this, '{{CONFIG_FREEDOM}}')">
-            <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-          </button>
-        </div>
-        <div class="config-content">
-          <pre id="singbox-config">{{CONFIG_FREEDOM}}</pre>
-        </div>
-        <div class="client-buttons">
           <a href="{{URL_CLASH}}" id="clash-import-btn" class="button client-btn" data-copy-url="{{URL_CLASH}}" aria-label="Import to Clash Meta, long press to copy link">
             <span class="client-icon"><svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="9" />
@@ -747,6 +772,54 @@
               </svg></span>
             <span class="button-text">Import to Exclave</span>
           </a>
+        </div>
+
+      <div class="config-card">
+        <div class="config-title">
+          <span>PattNG (fragmented)</span>
+          <button id="copy-pattng-btn" class="icon-btn" aria-label="Copy configuration" title="Copy configuration">
+            <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      
+        <div class="customizer-grid">
+          <div class="form-group">
+            <label for="preset-select">Fragment Preset</label>
+            <select id="preset-select" class="custom-select">
+              <option value="default">Standard (Default)</option>
+              <option value="aggressive">Aggressive Anti-Filter</option>
+              <option value="fast">Fast / Minimal Fragment</option>
+              <option value="custom">Custom Parameters</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fingerprint-select">Fingerprint (fp)</label>
+            <select id="fingerprint-select" class="custom-select">
+              <option value="unsafe">unsafe</option>
+              <option value="chrome">chrome</option>
+              <option value="firefox">firefox</option>
+              <option value="randomized">randomized</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="packets-input">Fragment Packets</label>
+            <input type="text" id="packets-input" class="custom-input" value="tlshello" placeholder="tlshello or 1-1">
+          </div>
+          <div class="form-group">
+            <label for="lengths-input">Length Range</label>
+            <input type="text" id="lengths-input" class="custom-input" value="100-200" placeholder="e.g. 100-200">
+          </div>
+          <div class="form-group">
+            <label for="delays-input">Delay Range (ms)</label>
+            <input type="text" id="delays-input" class="custom-input" value="10-20" placeholder="e.g. 10-20">
+          </div>
+        </div>
+      
+        <div class="config-content">
+          <pre id="pattng-config">{{CONFIG_PATTNG}}</pre>
         </div>
       </div>
 
@@ -979,13 +1052,64 @@
           return `vless://${userID}@${newHost}:${newPort}${queryString}#${encodeURIComponent(newName)}`;
         }
 
+        function formatConfigForDisplay(rawLink, maxParamLen = 60) {
+          const match = rawLink.match(/^(vless:\/\/[^?#]+)(\?[^#]*)?(#.*)?$/);
+          if (!match) return rawLink;
+          const [, prefix, query = "", hash = ""] = match;
+          const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+          const parts = [];
+          for (const [key, value] of params.entries()) {
+            const displayValue = value.length > maxParamLen ? value.slice(0, maxParamLen) + "…" : value;
+            parts.push(`${key}=${displayValue}`);
+          }
+          const decodedHash = hash ? "#" + decodeURIComponent(hash.slice(1)) : "";
+          return `${prefix}?${parts.join("&")}${decodedHash}`;
+        }
+        
+        function updatePattngConfigFromCustomizer(originalRaw, pre) {
+          if (!originalRaw || !pre) return;
+          const match = originalRaw.match(/^(vless:\/\/[^?#]+)(\?[^#]*)?(#.*)?$/);
+          if (!match) return;
+          const [, prefix, query = "", hash = ""] = match;
+          const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+        
+          const fp = document.getElementById("fingerprint-select")?.value || "unsafe";
+          const packets = document.getElementById("packets-input")?.value.trim() || "tlshello";
+          const lengths = document.getElementById("lengths-input")?.value.trim() || "100-200";
+          const delays = document.getElementById("delays-input")?.value.trim() || "10-30";
+        
+          params.set("fp", fp);
+        
+          const lengthParts = lengths.split("-").map((x) => x.trim()).filter(Boolean);
+          const delayParts = delays.split("-").map((x) => x.trim()).filter(Boolean);
+        
+          const fmObj = {
+            tcp: [
+              {
+                type: "fragment",
+                settings: {
+                  packets,
+                  lengths: lengthParts.length ? lengthParts : ["100", "200"],
+                  delays: delayParts.length ? delayParts : ["10"],
+                  maxSplit: "0",
+                },
+              },
+            ],
+          };
+          params.set("fm", JSON.stringify(fmObj));
+        
+          const newRaw = `${prefix}?${params.toString()}${hash}`;
+          pre.dataset.raw = newRaw;
+          pre.textContent = formatConfigForDisplay(newRaw);
+        }
+
         function processCustomCleanIPs(savedIps) {
           const card = document.getElementById("custom-config-card");
           const pre = document.getElementById("custom-configs-pre");
           if (!card || !pre) return;
           const lines = savedIps.split('\n').map(line => line.trim()).filter(line => line !== "");
           const xrayBase = document.getElementById("xray-config")?.textContent || "";
-          const sbBase = document.getElementById("singbox-config")?.textContent || "";
+          const sbBase = document.getElementById("pattng-config")?.dataset.raw || "";
           let customConfigs = [];
           lines.forEach((ip, index) => {
             let host = ip;
@@ -1162,6 +1286,53 @@
               if (event.target === v2rayngModal) closeV2rayngModal();
             });
           }
+
+          const pattngPre = document.getElementById("pattng-config");
+            let originalPattngRaw = null;
+            if (pattngPre) {
+              originalPattngRaw = pattngPre.textContent;
+              pattngPre.dataset.raw = originalPattngRaw;
+              pattngPre.textContent = formatConfigForDisplay(originalPattngRaw);
+            }
+            
+            document.getElementById("copy-pattng-btn")?.addEventListener("click", function() {
+              copyToClipboard(this, pattngPre?.dataset.raw || "");
+            });
+            
+            const presetSelect = document.getElementById("preset-select");
+            if (presetSelect) {
+              presetSelect.addEventListener("change", (e) => {
+                const val = e.target.value;
+                const fpSelect = document.getElementById("fingerprint-select");
+                const packetsInput = document.getElementById("packets-input");
+                const lengthsInput = document.getElementById("lengths-input");
+                const delaysInput = document.getElementById("delays-input");
+            
+                if (val === "default") {
+                  fpSelect.value = "unsafe";
+                  packetsInput.value = "tlshello";
+                  lengthsInput.value = "100-200";
+                  delaysInput.value = "10-20";
+                } else if (val === "aggressive") {
+                  fpSelect.value = "chrome";
+                  packetsInput.value = "tlshello";
+                  lengthsInput.value = "10-30";
+                  delaysInput.value = "1-2";
+                } else if (val === "fast") {
+                  fpSelect.value = "chrome";
+                  packetsInput.value = "tlshello";
+                  lengthsInput.value = "500-1000";
+                  delaysInput.value = "0-1";
+                }
+                updatePattngConfigFromCustomizer(originalPattngRaw, pattngPre);
+              });
+            }
+            
+            ["fingerprint-select", "packets-input", "lengths-input", "delays-input"].forEach((id) => {
+              document.getElementById(id)?.addEventListener("input", () =>
+                updatePattngConfigFromCustomizer(originalPattngRaw, pattngPre)
+              );
+            });
           const flashFeedback = (el, ok) => {
             el.classList.add(ok ? "copied" : "error");
             setTimeout(() => el.classList.remove(ok ? "copied" : "error"), 1200);
