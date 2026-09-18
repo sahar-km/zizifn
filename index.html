@@ -296,42 +296,650 @@
         color: #ff9b92 !important;
       }
 
-      .customizer-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-bottom: 12px;
+      .fragment-builder {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 100% 0%, rgba(56, 139, 253, 0.08), transparent 34%),
+          var(--bgColor-muted);
       }
       
-      .form-group {
+      .fragment-builder::after {
+        content: "";
+        position: absolute;
+        width: 220px;
+        height: 220px;
+        right: -120px;
+        top: -130px;
+        border-radius: 50%;
+        background: rgba(56, 139, 253, 0.055);
+        filter: blur(35px);
+        pointer-events: none;
+      }
+      
+      .fragment-header {
+        position: relative;
+        z-index: 1;
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+      
+      .fragment-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         min-width: 0;
       }
       
-      .form-group label {
-        font-size: 11px;
-        color: var(--fgColor-muted);
+      .fragment-mark {
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border: 1px solid rgba(88, 166, 255, 0.3);
+        border-radius: 10px;
+        background: var(--accent-muted);
+        color: #79c0ff;
       }
       
-      .custom-select,
-      .custom-input {
-        width: 100%;
+      .fragment-mark svg {
+        width: 19px;
+        height: 19px;
+      }
+      
+      .fragment-heading-text {
+        min-width: 0;
+      }
+      
+      .fragment-heading-text strong {
+        display: block;
+        color: var(--fgColor-default);
+        font-size: 14px;
+        line-height: 1.3;
+        font-weight: 600;
+      }
+      
+      .fragment-heading-text span {
+        display: block;
+        margin-top: 2px;
+        color: var(--fgColor-muted);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      
+      .fragment-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex: 0 0 auto;
+        padding: 4px 8px;
+        border: 1px solid rgba(63, 185, 80, 0.25);
+        border-radius: 999px;
+        background: var(--success-muted);
+        color: #7ee787;
+        font-size: 10px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      
+      .fragment-status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.08);
+      }
+      
+      .fragment-toolbar {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      
+      .fragment-presets {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 9px;
+        background: var(--bgColor-inset);
+      }
+      
+      .fragment-preset,
+      .fragment-view-btn {
         min-height: 32px;
-        padding: 6px 10px;
-        border-radius: var(--radius-sm);
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--fgColor-muted);
+        font: inherit;
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color var(--transition),
+          border-color var(--transition),
+          color var(--transition);
+      }
+      
+      .fragment-preset:hover,
+      .fragment-view-btn:hover {
+        color: var(--fgColor-default);
+        background: var(--bgColor-overlay);
+      }
+      
+      .fragment-preset.active,
+      .fragment-view-btn.active {
+        border-color: var(--borderColor-default);
+        background: var(--bgColor-overlay);
+        color: var(--fgColor-default);
+        box-shadow: 0 1px 2px rgba(1, 4, 9, 0.25);
+      }
+      
+      .fragment-view-toggle {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 9px;
+        background: var(--bgColor-inset);
+      }
+      
+      .fragment-chain {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .fragment-node {
+        position: relative;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 9px;
+        background: var(--bgColor-inset);
+        transition:
+          border-color var(--transition),
+          transform var(--transition);
+      }
+      
+      .fragment-node:hover {
+        border-color: var(--borderColor-default);
+      }
+      
+      .fragment-node-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 0 9px;
+        border-bottom: 1px solid var(--borderColor-muted);
+      }
+      
+      .fragment-drag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        color: var(--fgColor-subtle);
+        cursor: grab;
+        user-select: none;
+      }
+      
+      .fragment-drag:active {
+        cursor: grabbing;
+      }
+      
+      .fragment-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 21px;
+        height: 21px;
+        border-radius: 6px;
+        background: var(--bgColor-overlay);
+        color: var(--fgColor-muted);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 600;
+      }
+      
+      .fragment-node-title {
+        flex: 1;
+        min-width: 0;
+        color: var(--fgColor-default);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      
+      .fragment-node-title span {
+        margin-left: 5px;
+        color: var(--fgColor-subtle);
+        font-size: 9px;
+        font-weight: 400;
+      }
+      
+      .fragment-node-actions {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+      
+      .fragment-mini-btn {
+        width: 25px;
+        height: 25px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        background: transparent;
+        color: var(--fgColor-muted);
+        cursor: pointer;
+      }
+      
+      .fragment-mini-btn:hover {
+        border-color: var(--borderColor-muted);
+        background: var(--bgColor-overlay);
+        color: var(--fgColor-default);
+      }
+      
+      .fragment-mini-btn.danger:hover {
+        color: #ff7b72;
+        border-color: rgba(248, 81, 73, 0.25);
+        background: var(--danger-muted);
+      }
+      
+      .fragment-node-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 9px;
+        padding: 10px;
+      }
+      
+      .fragment-field {
+        min-width: 0;
+      }
+      
+      .fragment-field.full {
+        grid-column: 1 / -1;
+      }
+      
+      .fragment-field label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 5px;
+        color: var(--fgColor-muted);
+        font-size: 9px;
+        font-weight: 600;
+      }
+      
+      .fragment-field label span {
+        color: var(--fgColor-subtle);
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 400;
+      }
+      
+      .fragment-input {
+        width: 100%;
+        min-height: 31px;
+        padding: 6px 8px;
         border: 1px solid var(--borderColor-default);
+        border-radius: 6px;
+        background: var(--bgColor-default);
+        color: var(--fgColor-default);
+        font: inherit;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        box-sizing: border-box;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+      }
+      
+      .fragment-input:hover {
+        border-color: #545d68;
+      }
+      
+      .fragment-input:focus-visible {
+        outline: none;
+        border-color: var(--focus-outline);
+        box-shadow: 0 0 0 3px var(--accent-muted);
+      }
+      
+      .fragment-values {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+        min-height: 31px;
+        padding: 4px;
+        border: 1px solid var(--borderColor-default);
+        border-radius: 6px;
+        background: var(--bgColor-default);
+      }
+      
+      .fragment-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        min-height: 23px;
+        padding: 0 6px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 5px;
+        background: var(--bgColor-overlay);
+      }
+      
+      .fragment-chip input {
+        width: 42px;
+        padding: 2px 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: var(--fgColor-default);
+        font: inherit;
+        font-family: var(--font-mono);
+        font-size: 9px;
+      }
+      
+      .fragment-chip button {
+        width: 14px;
+        height: 14px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--fgColor-subtle);
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      
+      .fragment-chip button:hover {
+        color: #ff7b72;
+      }
+      
+      .fragment-add-value {
+        min-height: 23px;
+        padding: 0 7px;
+        border: 1px dashed var(--borderColor-default);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--fgColor-subtle);
+        font: inherit;
+        font-size: 9px;
+        cursor: pointer;
+      }
+      
+      .fragment-add-value:hover {
+        color: var(--fgColor-default);
+        border-color: var(--focus-outline);
+      }
+      
+      .fragment-chain-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 11px;
+        color: var(--fgColor-subtle);
+      }
+      
+      .fragment-chain-link::before {
+        content: "";
+        width: 1px;
+        height: 100%;
+        background: var(--borderColor-muted);
+      }
+      
+      .fragment-chain-link span {
+        position: absolute;
+        padding: 1px 5px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 999px;
+        background: var(--bgColor-muted);
+        color: var(--fgColor-subtle);
+        font-size: 7px;
+      }
+      
+      .fragment-add {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        min-height: 31px;
+        margin-top: 8px;
+        border: 1px dashed var(--borderColor-default);
+        border-radius: 7px;
+        background: transparent;
+        color: var(--fgColor-muted);
+        font: inherit;
+        font-size: 10px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      
+      .fragment-add:hover {
+        border-color: var(--focus-outline);
+        background: var(--accent-muted);
+        color: var(--fgColor-default);
+      }
+      
+      .fragment-preview {
+        position: relative;
+        z-index: 1;
+        overflow: hidden;
+        margin-top: 12px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 8px;
+        background: var(--bgColor-inset);
+      }
+      
+      .fragment-preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 33px;
+        padding: 0 9px;
+        border-bottom: 1px solid var(--borderColor-muted);
+      }
+      
+      .fragment-preview-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--fgColor-muted);
+        font-size: 9px;
+        font-weight: 600;
+      }
+      
+      .fragment-preview-title::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--fgColor-success);
+      }
+      
+      .fragment-copy {
+        min-height: 25px;
+        padding: 0 9px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 5px;
+        background: var(--bgColor-overlay);
+        color: var(--fgColor-muted);
+        font: inherit;
+        font-size: 9px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      
+      .fragment-copy:hover {
+        border-color: var(--borderColor-default);
+        color: var(--fgColor-default);
+      }
+      
+      .fragment-copy.copied {
+        background: var(--success-muted);
+        border-color: rgba(63, 185, 80, 0.4);
+        color: #7ee787;
+      }
+      
+      .fragment-preview pre {
+        margin: 0;
+        min-height: 70px;
+        max-height: 180px;
+        overflow: auto;
+        padding: 10px;
+        color: var(--fgColor-default);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      
+      .fragment-preview[hidden] {
+        display: none;
+      }
+      
+      .fragment-json {
+        display: none;
+      }
+      
+      .fragment-preview.json-mode .fragment-json {
+        display: block;
+      }
+      
+      .fragment-preview.json-mode .fragment-visual {
+        display: none;
+      }
+      
+      .fragment-visual {
+        padding: 10px;
+      }
+      
+      .fragment-visual-row {
+        display: grid;
+        grid-template-columns: 70px minmax(0, 1fr);
+        gap: 8px;
+        padding: 3px 0;
+        font-size: 9px;
+      }
+      
+      .fragment-visual-row .key {
+        color: var(--fgColor-subtle);
+      }
+      
+      .fragment-visual-row .value {
+        color: var(--fgColor-default);
+        font-family: var(--font-mono);
+        word-break: break-all;
+      }
+      
+      .fragment-footer {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-top: 9px;
+      }
+      
+      .fragment-fingerprint {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        color: var(--fgColor-muted);
+        font-size: 9px;
+      }
+      
+      .fragment-fingerprint select {
+        min-height: 27px;
+        padding: 3px 7px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 5px;
         background: var(--bgColor-inset);
         color: var(--fgColor-default);
         font: inherit;
-        font-size: 13px;
+        font-size: 9px;
       }
       
-      .custom-select:focus-visible,
-      .custom-input:focus-visible {
-        outline: 2px solid var(--focus-outline);
-        outline-offset: 1px;
+      .fragment-reset {
+        min-height: 27px;
+        padding: 0 8px;
+        border: 1px solid var(--borderColor-muted);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--fgColor-muted);
+        font: inherit;
+        font-size: 9px;
+        cursor: pointer;
+      }
+      
+      .fragment-reset:hover {
+        color: var(--fgColor-default);
+        border-color: var(--borderColor-default);
+      }
+      
+      @media (max-width: 640px) {
+        .fragment-toolbar {
+          grid-template-columns: 1fr;
+        }
+      
+        .fragment-node-body {
+          grid-template-columns: 1fr;
+        }
+      
+        .fragment-field.full {
+          grid-column: auto;
+        }
+      
+        .fragment-footer {
+          align-items: stretch;
+          flex-direction: column;
+        }
+      
+        .fragment-fingerprint {
+          justify-content: space-between;
+        }
+      
+        .fragment-reset {
+          width: 100%;
+        }
+      }
+      
+      @media (max-width: 420px) {
+        .fragment-status {
+          display: none;
+        }
+      
+        .fragment-heading-text span {
+          font-size: 10px;
+        }
+      
+        .fragment-presets {
+          grid-template-columns: 1fr;
+        }
+      
+        .fragment-view-toggle {
+          justify-content: center;
+        }
       }
 
       .ip-info-grid {
@@ -658,7 +1266,6 @@
         .container { gap: 10px; }
         .config-card { padding: 12px; }
         .client-buttons { grid-template-columns: 1fr; }
-        .customizer-grid { grid-template-columns: 1fr; }
         .modal-btn-group { grid-template-columns: 1fr; }
         .header p { font-size: 11px; }
         .footer { font-size: 11px; }
@@ -770,53 +1377,73 @@
             <span class="button-text">Import to Exclave</span>
           </a>
         </div>
-
-      <div class="config-card">
-        <div class="config-title">
-          <span>PattNG (fragmented)</span>
-          <button id="copy-pattng-btn" class="icon-btn" aria-label="Copy configuration" title="Copy configuration">
-            <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-          </button>
+      </div>
+      
+      <div class="config-card fragment-builder">
+        <div class="fragment-header">
+          <div class="fragment-heading">
+            <div class="fragment-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 7h14M5 12h14M5 17h14" />
+                <circle cx="8" cy="7" r="1.5" fill="currentColor" stroke="none" />
+                <circle cx="15" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                <circle cx="11" cy="17" r="1.5" fill="currentColor" stroke="none" />
+              </svg>
+            </div>
+            <div class="fragment-heading-text">
+              <strong>Fragment Builder</strong>
+              <span>Build your PattNG fragment chain</span>
+            </div>
+          </div>
+          <span class="fragment-status">Live Preview</span>
         </div>
       
-        <div class="customizer-grid">
-          <div class="form-group">
-            <label for="preset-select">Fragment Preset</label>
-            <select id="preset-select" class="custom-select">
-              <option value="default">Standard (Default)</option>
-              <option value="aggressive">Aggressive Anti-Filter</option>
-              <option value="fast">Fast / Minimal Fragment</option>
-              <option value="custom">Custom Parameters</option>
-            </select>
+        <div class="fragment-toolbar">
+          <div class="fragment-presets" role="tablist" aria-label="Fragment presets">
+            <button type="button" class="fragment-preset active" data-preset="default">Default</button>
+            <button type="button" class="fragment-preset" data-preset="aggressive">Aggressive</button>
+            <button type="button" class="fragment-preset" data-preset="custom">Custom</button>
           </div>
-          <div class="form-group">
-            <label for="fingerprint-select">Fingerprint (fp)</label>
-            <select id="fingerprint-select" class="custom-select">
+      
+          <div class="fragment-view-toggle" aria-label="Preview mode">
+            <button type="button" class="fragment-view-btn active" data-view="visual">Visual</button>
+            <button type="button" class="fragment-view-btn" data-view="json">JSON</button>
+          </div>
+        </div>
+      
+        <div id="fragment-chain" class="fragment-chain"></div>
+      
+        <button id="fragment-add-btn" type="button" class="fragment-add">
+          + Add Fragment
+        </button>
+      
+        <div id="fragment-preview" class="fragment-preview">
+          <div class="fragment-preview-header">
+            <span class="fragment-preview-title">Generated PattNG</span>
+            <button id="copy-pattng-btn" type="button" class="fragment-copy">
+              Copy
+            </button>
+          </div>
+      
+          <div id="fragment-visual-preview" class="fragment-visual"></div>
+          <pre id="fragment-json-preview" class="fragment-json"></pre>
+          <pre id="pattng-config" style="display:none">{{CONFIG_PATTNG}}</pre>
+        </div>
+      
+        <div class="fragment-footer">
+          <label class="fragment-fingerprint">
+            <span>Fingerprint</span>
+            <select id="fingerprint-select">
               <option value="unsafe">unsafe</option>
               <option value="chrome">chrome</option>
               <option value="firefox">firefox</option>
               <option value="randomized">randomized</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label for="packets-input">Fragment Packets</label>
-            <input type="text" id="packets-input" class="custom-input" value="tlshello" placeholder="tlshello or 1-1">
-          </div>
-          <div class="form-group">
-            <label for="lengths-input">Length Range</label>
-            <input type="text" id="lengths-input" class="custom-input" value="100-200" placeholder="e.g. 100-200">
-          </div>
-          <div class="form-group">
-            <label for="delays-input">Delay Range (ms)</label>
-            <input type="text" id="delays-input" class="custom-input" value="10-20" placeholder="e.g. 10-20">
-          </div>
-        </div>
+          </label>
       
-        <div class="config-content">
-          <pre id="pattng-config">{{CONFIG_PATTNG}}</pre>
+          <button id="fragment-reset-btn" type="button" class="fragment-reset">
+            Reset to Default
+          </button>
         </div>
       </div>
 
@@ -1063,41 +1690,268 @@
           return `${prefix}?${parts.join("&")}${decodedHash}`;
         }
         
-        function updatePattngConfigFromCustomizer(originalRaw, pre) {
-          if (!originalRaw || !pre) return;
-          const match = originalRaw.match(/^(vless:\/\/[^?#]+)(\?[^#]*)?(#.*)?$/);
-          if (!match) return;
-          const [, prefix, query = "", hash = ""] = match;
-          const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
-        
-          const fp = document.getElementById("fingerprint-select")?.value || "unsafe";
-          const packets = document.getElementById("packets-input")?.value.trim() || "tlshello";
-          const lengths = document.getElementById("lengths-input")?.value.trim() || "100-200";
-          const delays = document.getElementById("delays-input")?.value.trim() || "10-30";
-        
-          params.set("fp", fp);
-        
-          const lengthParts = lengths.split("-").map((x) => x.trim()).filter(Boolean);
-          const delayParts = delays.split("-").map((x) => x.trim()).filter(Boolean);
-        
-          const fmObj = {
+        const PATTNG_PRESETS = {
+          default: {
             tcp: [
               {
                 type: "fragment",
                 settings: {
-                  packets,
-                  lengths: lengthParts.length ? lengthParts : ["100", "200"],
-                  delays: delayParts.length ? delayParts : ["10"],
+                  packets: "tlshello",
+                  lengths: ["0", "104", "1"],
+                  delays: ["0"],
                   maxSplit: "0",
                 },
               },
+              {
+                type: "fragment",
+                settings: {
+                  packets: "1-1",
+                  lengths: ["114", "1"],
+                  delays: ["1"],
+                  maxSplit: "11",
+                },
+              },
             ],
-          };
-          params.set("fm", JSON.stringify(fmObj));
+          },
+          aggressive: {
+            tcp: [
+              {
+                type: "fragment",
+                settings: {
+                  packets: "tlshello",
+                  lengths: ["5", "94", "1"],
+                  delays: ["0"],
+                  maxSplit: "0",
+                },
+              },
+              {
+                type: "fragment",
+                settings: {
+                  packets: "1-1",
+                  lengths: ["109", "1"],
+                  delays: ["1"],
+                  maxSplit: "355",
+                },
+              },
+            ],
+          },
+        };
+        
+        let pattngState = structuredClone(PATTNG_PRESETS.default);
+        
+        function clonePattngState(value) {
+          return JSON.parse(JSON.stringify(value));
+        }
+        
+        function escapeHtml(value) {
+          return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+        }
+        
+        function renderFragmentValues(values, fragmentIndex, key) {
+          return `
+            <div class="fragment-values" data-index="${fragmentIndex}" data-key="${key}">
+              ${values
+                .map(
+                  (value, valueIndex) => `
+                    <span class="fragment-chip">
+                      <input
+                        type="text"
+                        value="${escapeHtml(value)}"
+                        data-value-index="${valueIndex}"
+                        aria-label="${key} value ${valueIndex + 1}"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                      <button
+                        type="button"
+                        data-remove-value="${valueIndex}"
+                        aria-label="Remove ${key} value"
+                      >×</button>
+                    </span>
+                  `,
+                )
+                .join("")}
+              <button type="button" class="fragment-add-value" data-add-value>
+                + Add
+              </button>
+            </div>
+          `;
+        }
+        
+        function renderFragmentChain() {
+          const chain = document.getElementById("fragment-chain");
+          if (!chain) return;
+        
+          chain.innerHTML = pattngState.tcp
+            .map(
+              (fragment, index) => `
+                ${index > 0 ? '<div class="fragment-chain-link"><span>next</span></div>' : ""}
+                <article class="fragment-node" data-fragment-index="${index}">
+                  <div class="fragment-node-head">
+                    <span class="fragment-drag" title="Move fragment">⋮⋮</span>
+                    <span class="fragment-number">${String(index + 1).padStart(2, "0")}</span>
+                    <div class="fragment-node-title">
+                      Fragment
+                      <span>${index === 0 ? "TLS Hello" : "Packet Split"}</span>
+                    </div>
+                    <div class="fragment-node-actions">
+                      <button type="button" class="fragment-mini-btn" data-move-up="${index}" aria-label="Move fragment up">↑</button>
+                      <button type="button" class="fragment-mini-btn" data-move-down="${index}" aria-label="Move fragment down">↓</button>
+                      <button type="button" class="fragment-mini-btn danger" data-remove-fragment="${index}" aria-label="Remove fragment">×</button>
+                    </div>
+                  </div>
+        
+                  <div class="fragment-node-body">
+                    <div class="fragment-field full">
+                      <label>
+                        Packets
+                        <span>string</span>
+                      </label>
+                      <input
+                        class="fragment-input"
+                        type="text"
+                        value="${escapeHtml(fragment.settings.packets)}"
+                        data-fragment-index="${index}"
+                        data-field="packets"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                    </div>
+        
+                    <div class="fragment-field">
+                      <label>
+                        Lengths
+                        <span>array</span>
+                      </label>
+                      ${renderFragmentValues(fragment.settings.lengths, index, "lengths")}
+                    </div>
+        
+                    <div class="fragment-field">
+                      <label>
+                        Delays
+                        <span>array</span>
+                      </label>
+                      ${renderFragmentValues(fragment.settings.delays, index, "delays")}
+                    </div>
+        
+                    <div class="fragment-field">
+                      <label>
+                        Max Split
+                        <span>string</span>
+                      </label>
+                      <input
+                        class="fragment-input"
+                        type="text"
+                        value="${escapeHtml(fragment.settings.maxSplit)}"
+                        data-fragment-index="${index}"
+                        data-field="maxSplit"
+                        autocomplete="off"
+                        spellcheck="false"
+                      />
+                    </div>
+                  </div>
+                </article>
+              `,
+            )
+            .join("");
+        
+          if (pattngState.tcp.length === 1) {
+            chain.querySelectorAll("[data-remove-fragment]").forEach((button) => {
+              button.disabled = true;
+              button.style.opacity = "0.35";
+              button.style.cursor = "not-allowed";
+            });
+          }
+        }
+        
+        function getPattngObject() {
+          return clonePattngState(pattngState);
+        }
+        
+        function getPattngJson() {
+          return JSON.stringify(getPattngObject());
+        }
+        
+        function updatePattngPreview(originalRaw, pre) {
+          if (!originalRaw || !pre) return;
+        
+          const match = originalRaw.match(/^(vless:\/\/[^?#]+)(\?[^#]*)?(#.*)?$/);
+          if (!match) return;
+        
+          const [, prefix, query = "", hash = ""] = match;
+          const params = new URLSearchParams(query.startsWith("?") ? query.slice(1) : query);
+        
+          params.set("fp", document.getElementById("fingerprint-select")?.value || "unsafe");
+          params.set("fm", getPattngJson());
         
           const newRaw = `${prefix}?${params.toString()}${hash}`;
           pre.dataset.raw = newRaw;
-          pre.textContent = formatConfigForDisplay(newRaw);
+        
+          const visual = document.getElementById("fragment-visual-preview");
+          const json = document.getElementById("fragment-json-preview");
+        
+          if (visual) {
+            visual.innerHTML = pattngState.tcp
+              .map(
+                (fragment, index) => `
+                  <div style="padding:${index ? "8px 0 0" : "0"};${index ? "border-top:1px solid var(--borderColor-muted);margin-top:8px;" : ""}">
+                    <div class="fragment-visual-row">
+                      <span class="key">Fragment</span>
+                      <span class="value">#${index + 1}</span>
+                    </div>
+                    <div class="fragment-visual-row">
+                      <span class="key">packets</span>
+                      <span class="value">${escapeHtml(fragment.settings.packets)}</span>
+                    </div>
+                    <div class="fragment-visual-row">
+                      <span class="key">lengths</span>
+                      <span class="value">${escapeHtml(fragment.settings.lengths.join(" · "))}</span>
+                    </div>
+                    <div class="fragment-visual-row">
+                      <span class="key">delays</span>
+                      <span class="value">${escapeHtml(fragment.settings.delays.join(" · "))}</span>
+                    </div>
+                    <div class="fragment-visual-row">
+                      <span class="key">maxSplit</span>
+                      <span class="value">${escapeHtml(fragment.settings.maxSplit)}</span>
+                    </div>
+                  </div>
+                `,
+              )
+              .join("");
+          }
+        
+          if (json) {
+            json.textContent = JSON.stringify(getPattngObject(), null, 2);
+          }
+        }
+        
+        function setFragmentPreset(name, originalRaw, pre) {
+          if (name === "custom") return;
+        
+          const preset = PATTNG_PRESETS[name];
+          if (!preset) return;
+        
+          pattngState = clonePattngState(preset);
+          renderFragmentChain();
+          updatePattngPreview(originalRaw, pre);
+        }
+        
+        function markCustomPreset() {
+          document.querySelectorAll(".fragment-preset").forEach((button) => {
+            button.classList.toggle("active", button.dataset.preset === "custom");
+          });
+        }
+        
+        function refreshPattng(originalRaw, pre) {
+          markCustomPreset();
+          renderFragmentChain();
+          updatePattngPreview(originalRaw, pre);
         }
 
         function processCustomCleanIPs(savedIps) {
@@ -1285,51 +2139,162 @@
           }
 
           const pattngPre = document.getElementById("pattng-config");
-            let originalPattngRaw = null;
-            if (pattngPre) {
-              originalPattngRaw = pattngPre.textContent;
-              pattngPre.dataset.raw = originalPattngRaw;
-              pattngPre.textContent = formatConfigForDisplay(originalPattngRaw);
-            }
-            
-            document.getElementById("copy-pattng-btn")?.addEventListener("click", function() {
-              copyToClipboard(this, pattngPre?.dataset.raw || "");
-            });
-            
-            const presetSelect = document.getElementById("preset-select");
-            if (presetSelect) {
-              presetSelect.addEventListener("change", (e) => {
-                const val = e.target.value;
-                const fpSelect = document.getElementById("fingerprint-select");
-                const packetsInput = document.getElementById("packets-input");
-                const lengthsInput = document.getElementById("lengths-input");
-                const delaysInput = document.getElementById("delays-input");
-            
-                if (val === "default") {
-                  fpSelect.value = "unsafe";
-                  packetsInput.value = "tlshello";
-                  lengthsInput.value = "100-200";
-                  delaysInput.value = "10-20";
-                } else if (val === "aggressive") {
-                  fpSelect.value = "chrome";
-                  packetsInput.value = "tlshello";
-                  lengthsInput.value = "10-30";
-                  delaysInput.value = "1-2";
-                } else if (val === "fast") {
-                  fpSelect.value = "chrome";
-                  packetsInput.value = "tlshello";
-                  lengthsInput.value = "500-1000";
-                  delaysInput.value = "0-1";
-                }
-                updatePattngConfigFromCustomizer(originalPattngRaw, pattngPre);
+          let originalPattngRaw = null;
+          
+          if (pattngPre) {
+            originalPattngRaw = pattngPre.textContent.trim();
+            pattngPre.dataset.raw = originalPattngRaw;
+          
+            pattngState = clonePattngState(PATTNG_PRESETS.default);
+            renderFragmentChain();
+            updatePattngPreview(originalPattngRaw, pattngPre);
+          }
+          
+          document.querySelectorAll(".fragment-preset").forEach((button) => {
+            button.addEventListener("click", () => {
+              const preset = button.dataset.preset;
+          
+              document.querySelectorAll(".fragment-preset").forEach((item) => {
+                item.classList.toggle("active", item === button);
               });
-            }
-            
-            ["fingerprint-select", "packets-input", "lengths-input", "delays-input"].forEach((id) => {
-              document.getElementById(id)?.addEventListener("input", () =>
-                updatePattngConfigFromCustomizer(originalPattngRaw, pattngPre)
-              );
+          
+              if (preset === "custom") {
+                return;
+              }
+          
+              setFragmentPreset(preset, originalPattngRaw, pattngPre);
             });
+          });
+          
+          document.querySelectorAll(".fragment-view-btn").forEach((button) => {
+            button.addEventListener("click", () => {
+              const preview = document.getElementById("fragment-preview");
+              if (!preview) return;
+          
+              document.querySelectorAll(".fragment-view-btn").forEach((item) => {
+                item.classList.toggle("active", item === button);
+              });
+          
+              preview.classList.toggle("json-mode", button.dataset.view === "json");
+            });
+          });
+          
+          document.getElementById("fragment-add-btn")?.addEventListener("click", () => {
+            pattngState.tcp.push({
+              type: "fragment",
+              settings: {
+                packets: "1-1",
+                lengths: ["1"],
+                delays: ["1"],
+                maxSplit: "1",
+              },
+            });
+          
+            refreshPattng(originalPattngRaw, pattngPre);
+          });
+          
+          document.getElementById("fragment-chain")?.addEventListener("input", (event) => {
+            const target = event.target;
+            const index = Number(target.dataset.fragmentIndex);
+            const field = target.dataset.field;
+          
+            if (!Number.isInteger(index) || !field || !pattngState.tcp[index]) return;
+          
+            pattngState.tcp[index].settings[field] = target.value;
+            updatePattngPreview(originalPattngRaw, pattngPre);
+          });
+          
+          document.getElementById("fragment-chain")?.addEventListener("click", (event) => {
+            const target = event.target.closest("button");
+            if (!target) return;
+          
+            const chain = pattngState.tcp;
+          
+            const removeFragment = target.dataset.removeFragment;
+            const moveUp = target.dataset.moveUp;
+            const moveDown = target.dataset.moveDown;
+            const addValue = target.hasAttribute("data-add-value");
+            const removeValue = target.dataset.removeValue;
+          
+            if (removeFragment !== undefined) {
+              const index = Number(removeFragment);
+          
+              if (chain.length > 1) {
+                chain.splice(index, 1);
+                refreshPattng(originalPattngRaw, pattngPre);
+              }
+          
+              return;
+            }
+          
+            if (moveUp !== undefined) {
+              const index = Number(moveUp);
+          
+              if (index > 0) {
+                [chain[index - 1], chain[index]] = [chain[index], chain[index - 1]];
+                refreshPattng(originalPattngRaw, pattngPre);
+              }
+          
+              return;
+            }
+          
+            if (moveDown !== undefined) {
+              const index = Number(moveDown);
+          
+              if (index < chain.length - 1) {
+                [chain[index], chain[index + 1]] = [chain[index + 1], chain[index]];
+                refreshPattng(originalPattngRaw, pattngPre);
+              }
+          
+              return;
+            }
+          
+            const valuesContainer = target.closest(".fragment-values");
+            if (!valuesContainer) return;
+          
+            const index = Number(valuesContainer.dataset.index);
+            const key = valuesContainer.dataset.key;
+          
+            if (!Number.isInteger(index) || !chain[index]) return;
+          
+            if (addValue) {
+              chain[index].settings[key].push("1");
+              refreshPattng(originalPattngRaw, pattngPre);
+              return;
+            }
+          
+            if (removeValue !== undefined) {
+              const valueIndex = Number(removeValue);
+              chain[index].settings[key].splice(valueIndex, 1);
+          
+              if (chain[index].settings[key].length === 0) {
+                chain[index].settings[key].push("0");
+              }
+          
+              refreshPattng(originalPattngRaw, pattngPre);
+            }
+          });
+          
+          document.getElementById("fingerprint-select")?.addEventListener("change", () => {
+            updatePattngPreview(originalPattngRaw, pattngPre);
+          });
+          
+          document.getElementById("fragment-reset-btn")?.addEventListener("click", () => {
+            pattngState = clonePattngState(PATTNG_PRESETS.default);
+          
+            document.getElementById("fingerprint-select").value = "unsafe";
+          
+            document.querySelectorAll(".fragment-preset").forEach((button) => {
+              button.classList.toggle("active", button.dataset.preset === "default");
+            });
+          
+            refreshPattng(originalPattngRaw, pattngPre);
+          });
+          
+          document.getElementById("copy-pattng-btn")?.addEventListener("click", function() {
+            copyToClipboard(this, pattngPre?.dataset.raw || "");
+          });
+            
           const flashFeedback = (el, ok) => {
             el.classList.add(ok ? "copied" : "error");
             setTimeout(() => el.classList.remove(ok ? "copied" : "error"), 1200);
