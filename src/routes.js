@@ -211,7 +211,7 @@ export async function handleMyConnection(request, env, ctx) {
         if (targetObj.risk) risk = targetObj.risk.charAt(0).toUpperCase() + targetObj.risk.slice(1);
       }
     }
-  } catch (e) {}
+  } console.error("harmonica fetch failed", e)
 
   return new Response(
     JSON.stringify({
@@ -297,7 +297,7 @@ async function FetchIPData(ip) {
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
           Accept: "application/json",
         },
       },
@@ -342,11 +342,8 @@ async function getIpMeta(ctx, ip) {
 async function enrichWithPersistentCache(ctx, entries) {
   return Promise.all(
     entries.map(async (entry) => {
-      const cacheKey = `ipmeta:${entry.ip}`;
-      const cached = await cacheGetJson(cacheKey);
-      if (cached) return { ...entry, ...cached };
-      if (entry.country && entry.country !== "Unknown") await cachePutJson(ctx, cacheKey, entry);
-      return entry;
+      const meta = await getIpMeta(ctx, entry.ip);
+      return { ...entry, ...meta };
     }),
   );
 }
