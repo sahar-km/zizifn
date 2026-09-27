@@ -192,26 +192,28 @@ export async function handleMyConnection(request, env, ctx) {
   let risk = "Low";
 
   try {
-    const harmonicaRes = await safeFetch(
-      `https://cloudflare-scamalytics.pages.dev/${clientIP}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
+  const harmonicaRes = await safeFetch(
+    `https://harmonica.serpents.workers.dev/${clientIP}`,
+    {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+        Accept: "application/json",
       },
-      4000,
-    );
-    if (harmonicaRes.ok) {
-      const data = await harmonicaRes.json();
-      if (data) {
-        const targetObj = data.info || data;
-        threatScore = targetObj.score ?? targetObj.fraud_score ?? targetObj.threatScore ?? 0;
-        if (targetObj.risk) risk = targetObj.risk.charAt(0).toUpperCase() + targetObj.risk.slice(1);
-      }
+    },
+    4000,
+  );
+  if (harmonicaRes.ok) {
+    const data = await harmonicaRes.json();
+    if (data) {
+      const targetObj = data.info || data;
+      threatScore = targetObj.score ?? targetObj.fraud_score ?? targetObj.threatScore ?? 0;
+      if (targetObj.risk) risk = targetObj.risk.charAt(0).toUpperCase() + targetObj.risk.slice(1);
     }
-  } console.error("harmonica fetch failed", e)
+  }
+} catch (e) {
+  console.error("harmonica fetch failed", e);
+  }
 
   return new Response(
     JSON.stringify({
@@ -293,7 +295,7 @@ export async function handleProxyHostInfo(request, env, ctx) {
 async function FetchIPData(ip) {
   try {
     const res = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${ip}`,
+      `https://api.serpents.workers.dev/${ip}`,
       {
         headers: {
           "User-Agent":
