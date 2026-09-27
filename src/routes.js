@@ -291,38 +291,47 @@ export async function handleProxyHostInfo(request, env, ctx) {
 }
 
 async function FetchIPData(ip) {
-  try {
-    const res = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${ip}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-          Accept: "application/json",
+  const providers = [
+    `https://harmonica.serpents.workers.dev/${ip}`,
+    `https://cloudflare-scamalytics.pages.dev/${ip}`,
+    `https://harmonica.serpents.workers.dev/api/${ip}`,
+  ];
+
+  for (const url of providers) {
+    try {
+      const res = await safeFetch(
+        url,
+        {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            Accept: "application/json",
+          },
         },
-      },
-      3000,
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data) {
-        const info = data.info || {};
-        const details = data.details || {};
-        if (details.country && details.country !== "Unknown") {
-          const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
-          const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
-          return {
-            country: details.country,
-            countryCode: (details.country_code || "").toLowerCase(),
-            city: details.city || "",
-            org: details.isp || details.organization || "",
-            score: threatScore,
-            risk,
-          };
+        3000,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && !data.error) {
+          const info = data.info || data;
+          const details = data.details || {};
+          const country = details.country || data.country;
+          if (country && country !== "Unknown") {
+            const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
+            const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
+            return {
+              country,
+              countryCode: (details.country_code || data.countryCode || "").toLowerCase(),
+              city: details.city || data.city || "",
+              org: details.isp || details.organization || data.isp || "",
+              score: threatScore,
+              risk,
+            };
+          }
         }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
+  }
 
   try {
     const res = await safeFetch(`https://ipwho.is/${ip}`, {}, 3000);
