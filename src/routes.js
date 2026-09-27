@@ -301,26 +301,64 @@ async function FetchIPData(ip) {
           Accept: "application/json",
         },
       },
-      4000,
+      3000,
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data) return null;
-    const info = data.info || {};
-    const details = data.details || {};
-    const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
-    const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
-    return {
-      country: details.country || "Unknown",
-      countryCode: (details.country_code || "").toLowerCase(),
-      city: details.city || "",
-      org: details.isp || details.organization || "",
-      score: threatScore,
-      risk,
-    };
-  } catch (e) {
-    return null;
-  }
+    if (res.ok) {
+      const data = await res.json();
+      if (data) {
+        const info = data.info || {};
+        const details = data.details || {};
+        if (details.country && details.country !== "Unknown") {
+          const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
+          const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
+          return {
+            country: details.country,
+            countryCode: (details.country_code || "").toLowerCase(),
+            city: details.city || "",
+            org: details.isp || details.organization || "",
+            score: threatScore,
+            risk,
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const res = await safeFetch(`https://ipwho.is/${ip}`, {}, 3000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success !== false && data.country) {
+        return {
+          country: data.country,
+          countryCode: (data.country_code || "").toLowerCase(),
+          city: data.city || "",
+          org: data.connection?.isp || data.connection?.org || "",
+          score: 0,
+          risk: "Low",
+        };
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const res = await safeFetch(`http://ip-api.com/json/${ip}`, {}, 3000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "success" && data.country) {
+        return {
+          country: data.country,
+          countryCode: (data.countryCode || "").toLowerCase(),
+          city: data.city || "",
+          org: data.isp || data.org || "",
+          score: 0,
+          risk: "Low",
+        };
+      }
+    }
+  } catch (e) {}
+
+  return null;
 }
 
 async function getIpMeta(ctx, ip) {
@@ -345,8 +383,12 @@ async function enrichWithPersistentCache(ctx, entries) {
       const cacheKey = `ipmeta:${entry.ip}`;
       const cached = await cacheGetJson(cacheKey);
       if (cached) return { ...entry, ...cached };
-      if (entry.country && entry.country !== "Unknown") await cachePutJson(ctx, cacheKey, entry);
-      return entry;
+      if (entry.country && entry.country !== "Unknown") {
+        await cachePutJson(ctx, cacheKey, entry);
+        return entry;
+      }
+      const meta = await getIpMeta(ctx, entry.ip);
+      return { ...entry, ...meta };
     }),
   );
 }
@@ -369,7 +411,7 @@ async function resolveProxyPoolHost(host, port, ctx) {
     }
   }
 
-  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip));
+  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip)).slice(0, 20);
   pool = await enrichWithPersistentCache(ctx, pool);
 
   return pool.map((p) => ({
