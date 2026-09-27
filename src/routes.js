@@ -193,7 +193,7 @@ export async function handleMyConnection(request, env, ctx) {
 
   try {
   const harmonicaRes = await safeFetch(
-    `https://harmonica.serpents.workers.dev/${clientIP}`,
+    `https://cloudflare-scamalytics.pages.dev/${clientIP}`,
     {
       headers: {
         "User-Agent":
@@ -295,7 +295,7 @@ export async function handleProxyHostInfo(request, env, ctx) {
 async function FetchIPData(ip) {
   try {
     const res = await safeFetch(
-      `https://api.serpents.workers.dev/${ip}`,
+      `https://cloudflare-scamalytics.pages.dev/${ip}`,
       {
         headers: {
           "User-Agent":
