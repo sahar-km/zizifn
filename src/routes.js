@@ -212,7 +212,7 @@ export async function handleMyConnection(request, env, ctx) {
     }
   }
 } catch (e) {
-  console.error("harmonica fetch failed", e);
+    console.error("MyConnection harmonica failed", e.toString());
   }
 
   return new Response(
@@ -305,7 +305,10 @@ async function FetchIPData(ip) {
       },
       4000,
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("Harmonica non-ok", res.status, await res.text());
+      return null;
+    }
     const data = await res.json();
     if (!data) return null;
     const info = data.info || {};
@@ -320,7 +323,8 @@ async function FetchIPData(ip) {
       score: threatScore,
       risk,
     };
-  } catch (e) {
+  } } catch (e) {
+    console.error("Harmonica fetch threw", e.toString());
     return null;
   }
 }
@@ -341,7 +345,7 @@ async function getIpMeta(ctx, ip) {
   return meta;
 }
 
-async function enrichWithPersistentCache(ctx, entries) {
+async function (ctx, entries) {
   return Promise.all(
     entries.map(async (entry) => {
       const meta = await getIpMeta(ctx, entry.ip);
