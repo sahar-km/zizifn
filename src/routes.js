@@ -382,13 +382,25 @@ async function enrichWithPersistentCache(ctx, entries) {
     entries.map(async (entry) => {
       const cacheKey = `ipmeta:${entry.ip}`;
       const cached = await cacheGetJson(cacheKey);
-      if (cached) return { ...entry, ...cached };
+      if (cached) {
+        return {
+          ...entry,
+          ...cached,
+          score: (cached.score && cached.score !== 0) ? cached.score : (entry.score || cached.score),
+          risk: (cached.risk && cached.risk !== "Unknown") ? cached.risk : (entry.risk || cached.risk),
+        };
+      }
       if (entry.country && entry.country !== "Unknown") {
         await cachePutJson(ctx, cacheKey, entry);
         return entry;
       }
       const meta = await getIpMeta(ctx, entry.ip);
-      return { ...entry, ...meta };
+      return {
+        ...entry,
+        ...meta,
+        score: (meta.score && meta.score !== 0) ? meta.score : (entry.score || meta.score),
+        risk: (meta.risk && meta.risk !== "Unknown") ? meta.risk : (entry.risk || meta.risk),
+      };
     }),
   );
 }
