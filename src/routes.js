@@ -291,83 +291,36 @@ export async function handleProxyHostInfo(request, env, ctx) {
 }
 
 async function FetchIPData(ip) {
-  const providers = [
-    `https://harmonica.serpents.workers.dev/${ip}`,
-    `https://api.harmonica.workers.dev/${ip}`,
-    `https://harmonica.serpents.workers.dev/api/${ip}`,
-  ];
-
-  for (const url of providers) {
-    try {
-      const res = await safeFetch(
-        url,
-        {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-            Accept: "application/json",
-          },
+  try {
+    const res = await safeFetch(
+      `https://harmonica.serpents.workers.dev/${ip}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          Accept: "application/json",
         },
-        3000,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data && !data.error) {
-          const info = data.info || data;
-          const details = data.details || {};
-          const country = details.country || data.country;
-          if (country && country !== "Unknown") {
-            const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
-            const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
-            return {
-              country,
-              countryCode: (details.country_code || data.countryCode || "").toLowerCase(),
-              city: details.city || data.city || "",
-              org: details.isp || details.organization || data.isp || "",
-              score: threatScore,
-              risk,
-            };
-          }
-        }
-      }
-    } catch (e) {}
+      },
+      4000,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data) return null;
+    const info = data.info || {};
+    const details = data.details || {};
+    const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
+    const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
+    return {
+      country: details.country || "Unknown",
+      countryCode: (details.country_code || "").toLowerCase(),
+      city: details.city || "",
+      org: details.isp || details.organization || "",
+      score: threatScore,
+      risk,
+    };
+  } catch (e) {
+    return null;
   }
-
-  try {
-    const res = await safeFetch(`https://ipwho.is/${ip}`, {}, 3000);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success !== false && data.country) {
-        return {
-          country: data.country,
-          countryCode: (data.country_code || "").toLowerCase(),
-          city: data.city || "",
-          org: data.connection?.isp || data.connection?.org || "",
-          score: 0,
-          risk: "Low",
-        };
-      }
-    }
-  } catch (e) {}
-
-  try {
-    const res = await safeFetch(`http://ip-api.com/json/${ip}`, {}, 3000);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.status === "success" && data.country) {
-        return {
-          country: data.country,
-          countryCode: (data.countryCode || "").toLowerCase(),
-          city: data.city || "",
-          org: data.isp || data.org || "",
-          score: 0,
-          risk: "Low",
-        };
-      }
-    }
-  } catch (e) {}
-
-  return null;
 }
 
 async function getIpMeta(ctx, ip) {
@@ -391,25 +344,9 @@ async function enrichWithPersistentCache(ctx, entries) {
     entries.map(async (entry) => {
       const cacheKey = `ipmeta:${entry.ip}`;
       const cached = await cacheGetJson(cacheKey);
-      if (cached) {
-        return {
-          ...entry,
-          ...cached,
-          score: (cached.score && cached.score !== 0) ? cached.score : (entry.score || cached.score),
-          risk: (cached.risk && cached.risk !== "Unknown") ? cached.risk : (entry.risk || cached.risk),
-        };
-      }
-      if (entry.country && entry.country !== "Unknown") {
-        await cachePutJson(ctx, cacheKey, entry);
-        return entry;
-      }
-      const meta = await getIpMeta(ctx, entry.ip);
-      return {
-        ...entry,
-        ...meta,
-        score: (meta.score && meta.score !== 0) ? meta.score : (entry.score || meta.score),
-        risk: (meta.risk && meta.risk !== "Unknown") ? meta.risk : (entry.risk || meta.risk),
-      };
+      if (cached) return { ...entry, ...cached };
+      if (entry.country && entry.country !== "Unknown") await cachePutJson(ctx, cacheKey, entry);
+      return entry;
     }),
   );
 }
@@ -432,7 +369,7 @@ async function resolveProxyPoolHost(host, port, ctx) {
     }
   }
 
-  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip)).slice(0, 20);
+  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip));
   pool = await enrichWithPersistentCache(ctx, pool);
 
   return pool.map((p) => ({
