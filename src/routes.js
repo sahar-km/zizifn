@@ -323,7 +323,7 @@ async function FetchIPData(ip) {
       score: threatScore,
       risk,
     };
-  } } catch (e) {
+  } catch (e) {
     console.error("Harmonica fetch threw", e.toString());
     return null;
   }
