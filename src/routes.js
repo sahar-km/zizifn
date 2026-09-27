@@ -193,11 +193,11 @@ export async function handleMyConnection(request, env, ctx) {
 
   try {
     const harmonicaRes = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${clientIP}`,
+      `https://cloudflare-scamalytics.pages.dev/${clientIP}`,
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
           Accept: "application/json",
         },
       },
@@ -293,7 +293,7 @@ export async function handleProxyHostInfo(request, env, ctx) {
 async function FetchIPData(ip) {
   const providers = [
     `https://harmonica.serpents.workers.dev/${ip}`,
-    `https://cloudflare-scamalytics.pages.dev/${ip}`,
+    `https://api.harmonica.workers.dev/${ip}`,
     `https://harmonica.serpents.workers.dev/api/${ip}`,
   ];
 
