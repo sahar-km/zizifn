@@ -345,7 +345,7 @@ async function getIpMeta(ctx, ip) {
   return meta;
 }
 
-async function (ctx, entries) {
+async function enrichWithPersistentCache(ctx, entries) {
   return Promise.all(
     entries.map(async (entry) => {
       const meta = await getIpMeta(ctx, entry.ip);
