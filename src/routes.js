@@ -15,9 +15,20 @@ import {
   cachePutJson,
   pickRandomProxyPort,
 } from "./core.js";
+
 import panelB64 from "./panel.b64";
 const panelBytes = Uint8Array.from(atob(panelB64), (c) => c.charCodeAt(0));
 const panelHtml = new TextDecoder("utf-8").decode(panelBytes);
+
+const PROXYCHECK_KEYS = [
+  "329393-n63626-4443l4-229767",
+  "f62263-r3p24i-192296-w38226",
+  "0e049n-893822-27qe5p-861f68",
+];
+
+function pickProxyCheckKey() {
+  return PROXYCHECK_KEYS[Math.floor(Math.random() * PROXYCHECK_KEYS.length)];
+}
 
 export async function handleIpSubscription(
   request,
@@ -192,27 +203,22 @@ export async function handleMyConnection(request, env, ctx) {
   let risk = "Low";
 
   try {
-  const harmonicaRes = await safeFetch(
-    `https://cloudflare-scamalytics.pages.dev/${clientIP}`,
-    {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
-    },
-    4000,
-  );
-  if (harmonicaRes.ok) {
-    const data = await harmonicaRes.json();
-    if (data) {
-      const targetObj = data.info || data;
-      threatScore = targetObj.score ?? targetObj.fraud_score ?? targetObj.threatScore ?? 0;
-      if (targetObj.risk) risk = targetObj.risk.charAt(0).toUpperCase() + targetObj.risk.slice(1);
+    const key = pickProxyCheckKey();
+    const pcRes = await safeFetch(
+      `https://proxycheck.io/v3/${clientIP}?key=${key}`,
+      {},
+      4000,
+    );
+    if (pcRes.ok) {
+      const data = await pcRes.json();
+      const entry = data?.[clientIP];
+      if (data?.status === "ok" && entry) {
+        threatScore = entry.detections?.risk ?? 0;
+        risk = threatScore >= 66 ? "High" : threatScore >= 33 ? "Medium" : "Low";
+      }
     }
-  }
-} catch (e) {
-    console.error("MyConnection harmonica failed", e.toString());
+  } catch (e) {
+    console.error("MyConnection proxycheck failed", e.toString());
   }
 
   return new Response(
@@ -294,37 +300,29 @@ export async function handleProxyHostInfo(request, env, ctx) {
 
 async function FetchIPData(ip) {
   try {
+    const key = pickProxyCheckKey();
     const res = await safeFetch(
-      `https://cloudflare-scamalytics.pages.dev/${ip}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
-      },
+      `https://proxycheck.io/v3/${ip}?key=${key}`,
+      {},
       4000,
     );
-    if (!res.ok) {
-      console.error("Harmonica non-ok", res.status, await res.text());
-      return null;
-    }
+    if (!res.ok) return null;
     const data = await res.json();
-    if (!data) return null;
-    const info = data.info || {};
-    const details = data.details || {};
-    const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
-    const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
+    if (!data || data.status !== "ok") return null;
+    const entry = data[ip];
+    if (!entry) return null;
+    const threatScore = entry.detections?.risk ?? 0;
+    const risk = threatScore >= 66 ? "High" : threatScore >= 33 ? "Medium" : "Low";
     return {
-      country: details.country || "Unknown",
-      countryCode: (details.country_code || "").toLowerCase(),
-      city: details.city || "",
-      org: details.isp || details.organization || "",
+      country: entry.location?.country_name || "Unknown",
+      countryCode: (entry.location?.country_code || "").toLowerCase(),
+      city: entry.location?.city_name || "",
+      org: entry.network?.provider || entry.network?.organisation || "",
       score: threatScore,
       risk,
     };
   } catch (e) {
-    console.error("Harmonica fetch threw", e.toString());
+    console.error("ProxyCheck fetch threw", e.toString());
     return null;
   }
 }
