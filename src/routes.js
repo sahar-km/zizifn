@@ -197,7 +197,7 @@ export async function handleMyConnection(request, env, ctx) {
 
   try {
     const harmonicaRes = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${clientIP}`,
+      `https://cf-connected.pages.dev/${clientIP}`,
       {
         headers: {
           "User-Agent":
@@ -315,7 +315,6 @@ export async function handleProxyHostInfo(request, env, ctx) {
 }
 
 async function fetchFreeIpMeta(ip) {
-  // Try ipwho.is first
   try {
     const res = await safeFetch(`https://ipwho.is/${ip}`, {}, 4000);
     if (res.ok) {
@@ -333,7 +332,6 @@ async function fetchFreeIpMeta(ip) {
     console.error("ipwho.is fallback fetch failed:", e.toString());
   }
 
-  // Try ipapi.co second
   try {
     const res = await safeFetch(
       `https://ipapi.co/${ip}/json/`,
@@ -410,7 +408,7 @@ async function FetchIPData(ip) {
         }
       }
     } catch (e) {
-      console.error("Free FetchIPData fallback failed:", e.toString());
+      console.error("FetchIPData fallback failed:", e.toString());
     }
   }
 
