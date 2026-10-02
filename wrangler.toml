@@ -1,6 +1,7 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
 name = "sahar"
 main = "index.js"
-compatibility_date = "2025-09-01"
+compatibility_date = "2026-10-02"
 
 [build]
 command = "wasm-pack build --target web"
