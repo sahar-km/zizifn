@@ -69,14 +69,7 @@ export async function resolveIPv4ViaDoH(hostname) {
 }
 
 export async function fetchDomainIpPool(domain, timeout = 60000) {
-  try {
-    const res = await safeFetch(
-      `https://harmonica.serpents.workers.dev/api/domain/${encodeURIComponent(domain)}`,
-      {},
-      timeout,
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
+  const parseResults = (data) => {
     if (!data || data.success === false || !Array.isArray(data.results)) return [];
     return data.results
       .filter((r) => r && typeof r.ip === "string" && IPV4_REGEX.test(r.ip))
@@ -87,9 +80,40 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
         country: r.details?.country || "Unknown",
         countryCode: (r.details?.country_code || "").toLowerCase(),
       }));
+  };
+
+  // Try primary API endpoint
+  try {
+    const res = await safeFetch(
+      `https://harmonica.serpents.workers.dev/api/domain/${encodeURIComponent(domain)}`,
+      {},
+      timeout,
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const pool = parseResults(data);
+      if (pool.length > 0) return pool;
+    }
   } catch (e) {
-    return [];
+    console.error("Primary fetchDomainIpPool failed:", e.toString());
   }
+
+  // Fallback to backup API endpoint
+  try {
+    const resBackup = await safeFetch(
+      `https://api-serpents.pages.dev/api/domain/${encodeURIComponent(domain)}`,
+      {},
+      timeout,
+    );
+    if (resBackup.ok) {
+      const dataBackup = await resBackup.json();
+      return parseResults(dataBackup);
+    }
+  } catch (e) {
+    console.error("Backup fetchDomainIpPool failed:", e.toString());
+  }
+
+  return [];
 }
 
 export async function safeFetch(url, options = {}, timeout = 4000) {
