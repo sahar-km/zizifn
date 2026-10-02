@@ -1,4 +1,3 @@
-"$schema" = "./node_modules/wrangler/config-schema.json"
 name = "sahar"
 main = "index.js"
 compatibility_date = "2026-10-02"
