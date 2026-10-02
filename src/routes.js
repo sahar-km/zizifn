@@ -20,16 +20,6 @@ import panelB64 from "./panel.b64";
 const panelBytes = Uint8Array.from(atob(panelB64), (c) => c.charCodeAt(0));
 const panelHtml = new TextDecoder("utf-8").decode(panelBytes);
 
-const PROXYCHECK_KEYS = [
-  "329393-n63626-4443l4-229767",
-  "f62263-r3p24i-192296-w38226",
-  "0e049n-893822-27qe5p-861f68",
-];
-
-function pickProxyCheckKey() {
-  return PROXYCHECK_KEYS[Math.floor(Math.random() * PROXYCHECK_KEYS.length)];
-}
-
 export async function handleIpSubscription(
   request,
   core,
@@ -234,28 +224,17 @@ export async function handleMyConnection(request, env, ctx) {
     console.error("Harmonica my-connection fetch failed:", e.toString());
   }
 
-  // Fallback for location/ISP details if missing and Harmonica failed or lacked details
+  // Free fallback for location/ISP details if missing
   if (!country || country === "N/A" || !isp || isp === "N/A") {
     try {
-      const key = pickProxyCheckKey();
-      const pcRes = await safeFetch(
-        `https://proxycheck.io/v3/${clientIP}?key=${key}`,
-        {},
-        4000,
-      );
-      if (pcRes.ok) {
-        const pcData = await pcRes.json();
-        if (pcData && pcData.status === "ok") {
-          const entry = pcData[clientIP];
-          if (entry) {
-            if (!country || country === "N/A") country = entry.location?.country_name || country;
-            if (!city) city = entry.location?.city_name || city;
-            if (!isp || isp === "N/A") isp = entry.network?.provider || entry.network?.organisation || isp;
-          }
-        }
+      const fallbackMeta = await fetchFreeIpMeta(clientIP);
+      if (fallbackMeta) {
+        if (!country || country === "N/A") country = fallbackMeta.country || country;
+        if (!city) city = fallbackMeta.city || city;
+        if (!isp || isp === "N/A") isp = fallbackMeta.org || isp;
       }
     } catch (e) {
-      console.error("ProxyCheck my-connection fallback failed:", e.toString());
+      console.error("Free my-connection fallback failed:", e.toString());
     }
   }
 
@@ -336,6 +315,50 @@ export async function handleProxyHostInfo(request, env, ctx) {
   }
 }
 
+async function fetchFreeIpMeta(ip) {
+  // Try ipwho.is first
+  try {
+    const res = await safeFetch(`https://ipwho.is/${ip}`, {}, 4000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success !== false) {
+        return {
+          country: data.country || "Unknown",
+          countryCode: (data.country_code || "").toLowerCase(),
+          city: data.city || "",
+          org: data.connection?.isp || data.connection?.org || "",
+        };
+      }
+    }
+  } catch (e) {
+    console.error("ipwho.is fallback fetch failed:", e.toString());
+  }
+
+  // Try ipapi.co second
+  try {
+    const res = await safeFetch(
+      `https://ipapi.co/${ip}/json/`,
+      { headers: { "User-Agent": "Mozilla/5.0" } },
+      4000,
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data && !data.error) {
+        return {
+          country: data.country_name || "Unknown",
+          countryCode: (data.country_code || "").toLowerCase(),
+          city: data.city || "",
+          org: data.org || data.asn || "",
+        };
+      }
+    }
+  } catch (e) {
+    console.error("ipapi.co fallback fetch failed:", e.toString());
+  }
+
+  return null;
+}
+
 async function FetchIPData(ip) {
   let country = "Unknown";
   let countryCode = "";
@@ -378,28 +401,17 @@ async function FetchIPData(ip) {
   const hasLocationInfo = country && country !== "Unknown";
   if (!harmonicaSuccess || !hasLocationInfo) {
     try {
-      const key = pickProxyCheckKey();
-      const res = await safeFetch(
-        `https://proxycheck.io/v3/${ip}?key=${key}`,
-        {},
-        4000,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.status === "ok") {
-          const entry = data[ip];
-          if (entry) {
-            if (!hasLocationInfo) {
-              country = entry.location?.country_name || country;
-              countryCode = (entry.location?.country_code || "").toLowerCase() || countryCode;
-              city = entry.location?.city_name || city;
-              org = entry.network?.provider || entry.network?.organisation || org;
-            }
-          }
+      const fallbackMeta = await fetchFreeIpMeta(ip);
+      if (fallbackMeta) {
+        if (!hasLocationInfo) {
+          country = fallbackMeta.country || country;
+          countryCode = fallbackMeta.countryCode || countryCode;
+          city = fallbackMeta.city || city;
+          org = fallbackMeta.org || org;
         }
       }
     } catch (e) {
-      console.error("ProxyCheck FetchIPData fallback failed:", e.toString());
+      console.error("Free FetchIPData fallback failed:", e.toString());
     }
   }
 
