@@ -197,7 +197,7 @@ export async function handleMyConnection(request, env, ctx) {
 
   try {
     const harmonicaRes = await safeFetch(
-      `https://cf-connected.pages.dev/${clientIP}`,
+      `https://api-serpents.pages.dev/${clientIP}`,
       {
         headers: {
           "User-Agent":
@@ -367,7 +367,7 @@ async function FetchIPData(ip) {
 
   try {
     const res = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${ip}`,
+      `https://api-serpents.pages.dev/${ip}`,
       {
         headers: {
           "User-Agent":
@@ -704,7 +704,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   });
 
   const settingsUrl = buildSettingsUrl(workerName);
-  const workerLabel = hostName.split(".")[0] || "INDEX";
+  const workerLabel = hostName.split(".")[0] || "0x00";
   const encodedSubName = encodeURIComponent(workerLabel);
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
   const subXrayUrlV = `https://${hostName}/xray/${userID}#${encodedSubName}`;
