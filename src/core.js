@@ -82,33 +82,35 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       }));
   };
 
+  // Try Pages API first (primary)
   try {
-    const res = await safeFetch(
-      `https://cf-connected.pages.dev/api/domain/${encodeURIComponent(domain)}`,
-      {},
-      timeout,
-    );
-    if (res.ok) {
-      const data = await res.json();
-      const pool = parseResults(data);
-      if (pool.length > 0) return pool;
-    }
-  } catch (e) {
-    console.error("Primary fetchDomainIpPool failed:", e.toString());
-  }
-  
-  try {
-    const resBackup = await safeFetch(
+    const resPages = await safeFetch(
       `https://api-serpents.pages.dev/api/domain/${encodeURIComponent(domain)}`,
       {},
       timeout,
     );
-    if (resBackup.ok) {
-      const dataBackup = await resBackup.json();
-      return parseResults(dataBackup);
+    if (resPages.ok) {
+      const dataPages = await resPages.json();
+      const pool = parseResults(dataPages);
+      if (pool.length > 0) return pool;
     }
   } catch (e) {
-    console.error("Backup fetchDomainIpPool failed:", e.toString());
+    console.error("Pages fetchDomainIpPool failed:", e.toString());
+  }
+
+  // Fallback to harmonica worker API
+  try {
+    const resHarmonica = await safeFetch(
+      `https://harmonica.serpents.workers.dev/api/domain/${encodeURIComponent(domain)}`,
+      {},
+      timeout,
+    );
+    if (resHarmonica.ok) {
+      const dataHarmonica = await resHarmonica.json();
+      return parseResults(dataHarmonica);
+    }
+  } catch (e) {
+    console.error("Harmonica fetchDomainIpPool failed:", e.toString());
   }
 
   return [];
