@@ -182,17 +182,19 @@ async function HandleTCPOutBound(
       return;
     }
     const { host: proxyHost, port: proxyPort } = parseHostAndPort(pool[index], 443);
-    const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
-    tcpSocket.closed
-      .catch((error) => console.log("proxy tcpSocket closed error", error))
-      .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(
-      tcpSocket,
-      webSocket,
-      protocolResponseHeader,
-      () => retryWithPool(pool, index + 1),
-      log,
-    );
+    try {
+      const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
+      RemoteSocketToWS(
+        tcpSocket,
+        webSocket,
+        protocolResponseHeader,
+        () => retryWithPool(pool, index + 1),
+        log,
+      );
+    } catch (error) {
+      log(`proxy ${proxyHost}:${proxyPort} failed`, error);
+      await retryWithPool(pool, index + 1);
+    }
   }
 
   async function retryWithNAT64() {
@@ -208,11 +210,29 @@ async function HandleTCPOutBound(
       return;
     }
     log(`falling back to NAT64: ${nat64Address}`);
-    const tcpSocket = await connectAndWrite(nat64Address, portRemote);
-    tcpSocket.closed
-      .catch((error) => console.log("NAT64 tcpSocket closed error", error))
-      .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, null, log);
+    
+    try {
+      const tcpSocket = await connectAndWrite(nat64Address, portRemote);
+      tcpSocket.closed.catch((error) => console.log("NAT64 tcpSocket closed error", error));
+    } catch (error) {
+      log("NAT64 connect failed", error);
+      await retryWithPool(config.proxyPool || [], 0);
+      return;
+    }
+    
+    try {
+      const tcpSocket = await connectAndWrite(addressRemote, portRemote);
+      RemoteSocketToWS(
+        tcpSocket,
+        webSocket,
+        protocolResponseHeader,
+        () => retryWithPool(config.proxyPool || [], 0),
+        log,
+      );
+    } catch (error) {
+      log("direct connect failed", error);
+      await retryWithPool(config.proxyPool || [], 0);
+    }
   }
 
   const tcpSocket = await connectAndWrite(addressRemote, portRemote);
@@ -286,9 +306,15 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
   }
 
   if (!hasIncomingData && retry) {
-    log(`No incoming data, retrying`);
-    await retry();
+    try {
+      await retry();
+    } catch (error) {
+      console.error("retry failed:", error.stack || error);
+      safeCloseWebSocket(webSocket);
+    }
+    return;
   }
+  safeCloseWebSocket(webSocket);
 }
 
 function base64ToArrayBuffer(base64Str) {
