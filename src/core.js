@@ -82,10 +82,9 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       }));
   };
 
-  // Try Pages API first (primary)
   try {
     const resPages = await safeFetch(
-      `https://api-serpents.pages.dev/api/domain/${encodeURIComponent(domain)}`,
+      `https://cf-connected.pages.dev/api/domain/${encodeURIComponent(domain)}`,
       {},
       timeout,
     );
@@ -95,13 +94,12 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       if (pool.length > 0) return pool;
     }
   } catch (e) {
-    console.error("Pages fetchDomainIpPool failed:", e.toString());
+    console.error("Primary API - fetchDomainIpPool failed:", e.toString());
   }
 
-  // Fallback to harmonica worker API
   try {
     const resHarmonica = await safeFetch(
-      `https://harmonica.serpents.workers.dev/api/domain/${encodeURIComponent(domain)}`,
+      `https://api-serpents.pages.dev/api/domain/${encodeURIComponent(domain)}`,
       {},
       timeout,
     );
@@ -110,7 +108,7 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       return parseResults(dataHarmonica);
     }
   } catch (e) {
-    console.error("Harmonica fetchDomainIpPool failed:", e.toString());
+    console.error("Secondary API - fetchDomainIpPool failed:", e.toString());
   }
 
   return [];
