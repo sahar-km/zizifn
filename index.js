@@ -14,7 +14,12 @@ import {
 
 let wasmReady = null;
 function ensureWasm() {
-  if (!wasmReady) wasmReady = init(wasm);
+  if (!wasmReady) {
+    wasmReady = init(wasm).catch((e) => {
+      wasmReady = null;
+      throw e;
+    });
+  }
   return wasmReady;
 }
 
