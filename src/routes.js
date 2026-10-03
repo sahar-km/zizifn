@@ -221,7 +221,7 @@ export async function handleMyConnection(request, env, ctx) {
       }
     }
   } catch (e) {
-    console.error("Harmonica my-connection fetch failed:", e.toString());
+    console.error("Serpents api my-connection fetch failed:", e.toString());
   }
 
   if (!country || country === "N/A" || !isp || isp === "N/A") {
@@ -367,7 +367,7 @@ async function FetchIPData(ip) {
 
   try {
     const res = await safeFetch(
-      `https://api-serpents.pages.dev/${ip}`,
+      `https://cf-connected.pages.dev/${ip}`,
       {
         headers: {
           "User-Agent":
@@ -392,7 +392,7 @@ async function FetchIPData(ip) {
       }
     }
   } catch (e) {
-    console.error("Harmonica FetchIPData failed:", e.toString());
+    console.error("CF-Connected api FetchIPData failed:", e.toString());
   }
 
   const hasLocationInfo = country && country !== "Unknown";
