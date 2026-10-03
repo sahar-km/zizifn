@@ -51,6 +51,11 @@ export const Config = {
 };
 
 const IPV4_REGEX = /^\d{1,3}(\.\d{1,3}){3}$/;
+export const API_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+  Accept: "application/json",
+};
 
 export async function resolveIPv4ViaDoH(hostname) {
   if (IPV4_REGEX.test(hostname)) return hostname;
@@ -68,7 +73,7 @@ export async function resolveIPv4ViaDoH(hostname) {
   }
 }
 
-export async function fetchDomainIpPool(domain, timeout = 60000) {
+export async function fetchDomainIpPool(domain, timeout = 80000) {
   const parseResults = (data) => {
     if (!data || data.success === false || !Array.isArray(data.results)) return [];
     return data.results
@@ -85,7 +90,7 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
   try {
     const resPages = await safeFetch(
       `https://cf-connected.pages.dev/api/domain/${encodeURIComponent(domain)}`,
-      {},
+      { headers: API_HEADERS },
       timeout,
     );
     if (resPages.ok) {
@@ -94,13 +99,13 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       if (pool.length > 0) return pool;
     }
   } catch (e) {
-    console.error("Primary API - fetchDomainIpPool failed:", e.toString());
+    console.error("Primary — fetchDomainIpPool failed:", e.toString());
   }
 
   try {
     const resHarmonica = await safeFetch(
       `https://api-serpents.pages.dev/api/domain/${encodeURIComponent(domain)}`,
-      {},
+      { headers: API_HEADERS },
       timeout,
     );
     if (resHarmonica.ok) {
@@ -108,7 +113,7 @@ export async function fetchDomainIpPool(domain, timeout = 60000) {
       return parseResults(dataHarmonica);
     }
   } catch (e) {
-    console.error("Secondary API - fetchDomainIpPool failed:", e.toString());
+    console.error("Secondary — fetchDomainIpPool failed:", e.toString());
   }
 
   return [];
@@ -357,6 +362,9 @@ export function buildSubscriptionHeaders(subName) {
     "Profile-Update-Interval": "8",
     "Subscription-Userinfo": subInfo,
   };
-  if (subName) headers["Profile-Title"] = subName;
-  return headers;
-}
+  if (subName) {
+    headers["Profile-Title"] = /^[\x20-\x7e]+$/.test(subName)
+      ? subName
+      : `base64:${btoa(String.fromCharCode(...new TextEncoder().encode(subName)))}`;
+  };
+ }
