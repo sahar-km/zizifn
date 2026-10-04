@@ -44,6 +44,39 @@ function parsePathOverrides(url) {
   return overrides;
 }
 
+export function parseHostAndPort(addr, defaultPort = 443) {
+  if (!addr) return { host: "", port: defaultPort };
+  const str = String(addr).trim();
+  if (str.startsWith("[")) {
+    const closeBracketIdx = str.indexOf("]");
+    if (closeBracketIdx !== -1) {
+      const host = str.slice(1, closeBracketIdx);
+      const rest = str.slice(closeBracketIdx + 1);
+      const port = rest.startsWith(":") ? parseInt(rest.slice(1), 10) || defaultPort : defaultPort;
+      return { host, port };
+    }
+  }
+  const lastColon = str.lastIndexOf(":");
+  if (lastColon !== -1 && str.indexOf(":") === lastColon) {
+    const host = str.slice(0, lastColon);
+    const port = parseInt(str.slice(lastColon + 1), 10) || defaultPort;
+    return { host, port };
+  }
+  if (lastColon !== -1) {
+    return { host: str, port: defaultPort };
+  }
+  return { host: str, port: defaultPort };
+}
+
+export function formatConnectHost(address) {
+  if (!address) return "";
+  const host = String(address).trim();
+  if (host.includes(":") && !host.startsWith("[")) {
+    return `[${host}]`;
+  }
+  return host;
+}
+
 export async function ProtocolOverWSHandler(request, config) {
   const overrides = parsePathOverrides(new URL(request.url));
   config = { ...config, ...overrides };
@@ -133,9 +166,10 @@ async function HandleTCPOutBound(
   config,
 ) {
   async function connectAndWrite(address, port) {
-    const tcpSocket = connect({ hostname: address, port: port });
+    const formattedHost = formatConnectHost(address);
+    const tcpSocket = connect({ hostname: formattedHost, port: Number(port) });
     remoteSocket.value = tcpSocket;
-    log(`connected to ${address}:${port}`);
+    log(`connected to ${formattedHost}:${port}`);
     const writer = tcpSocket.writable.getWriter();
     await writer.write(rawClientData);
     writer.releaseLock();
@@ -147,18 +181,20 @@ async function HandleTCPOutBound(
       await retryWithNAT64();
       return;
     }
-    const [proxyHost, proxyPort = "443"] = pool[index].split(":");
-    const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
-    tcpSocket.closed
-      .catch((error) => console.log("proxy tcpSocket closed error", error))
-      .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(
-      tcpSocket,
-      webSocket,
-      protocolResponseHeader,
-      () => retryWithPool(pool, index + 1),
-      log,
-    );
+    const { host: proxyHost, port: proxyPort } = parseHostAndPort(pool[index], 443);
+    try {
+      const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
+      RemoteSocketToWS(
+        tcpSocket,
+        webSocket,
+        protocolResponseHeader,
+        () => retryWithPool(pool, index + 1),
+        log,
+      );
+    } catch (error) {
+      log(`proxy ${proxyHost}:${proxyPort} failed`, error);
+      await retryWithPool(pool, index + 1);
+    }
   }
 
   async function retryWithNAT64() {
@@ -174,11 +210,29 @@ async function HandleTCPOutBound(
       return;
     }
     log(`falling back to NAT64: ${nat64Address}`);
-    const tcpSocket = await connectAndWrite(nat64Address, portRemote);
-    tcpSocket.closed
-      .catch((error) => console.log("NAT64 tcpSocket closed error", error))
-      .finally(() => safeCloseWebSocket(webSocket));
-    RemoteSocketToWS(tcpSocket, webSocket, protocolResponseHeader, null, log);
+    
+    try {
+      const tcpSocket = await connectAndWrite(nat64Address, portRemote);
+      tcpSocket.closed.catch((error) => console.log("NAT64 tcpSocket closed error", error));
+    } catch (error) {
+      log("NAT64 connect failed", error);
+      await retryWithPool(config.proxyPool || [], 0);
+      return;
+    }
+    
+    try {
+      const tcpSocket = await connectAndWrite(addressRemote, portRemote);
+      RemoteSocketToWS(
+        tcpSocket,
+        webSocket,
+        protocolResponseHeader,
+        () => retryWithPool(config.proxyPool || [], 0),
+        log,
+      );
+    } catch (error) {
+      log("direct connect failed", error);
+      await retryWithPool(config.proxyPool || [], 0);
+    }
   }
 
   const tcpSocket = await connectAndWrite(addressRemote, portRemote);
@@ -252,9 +306,15 @@ async function RemoteSocketToWS(remoteSocket, webSocket, protocolResponseHeader,
   }
 
   if (!hasIncomingData && retry) {
-    log(`No incoming data, retrying`);
-    await retry();
+    try {
+      await retry();
+    } catch (error) {
+      console.error("retry failed:", error.stack || error);
+      safeCloseWebSocket(webSocket);
+    }
+    return;
   }
+  safeCloseWebSocket(webSocket);
 }
 
 function base64ToArrayBuffer(base64Str) {

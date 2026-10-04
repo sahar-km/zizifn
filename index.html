@@ -1871,18 +1871,18 @@
       @media (max-width: 900px) {
         .ip-info-grid { grid-template-columns: 1fr; }
       }
-      
+
       @media (max-width: 760px) {
         .cards-row { grid-template-columns: 1fr; }
       }
-      
+
       @media (max-width: 640px) {
         body { padding: 12px; }
         .container { gap: 10px; }
         .config-card { padding: 12px; }
         .header p,
         .footer { font-size: 11px; }
-      
+
         .client-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .modal-btn-group,
         .fragment-toolbar,
@@ -1891,7 +1891,7 @@
         .fragment-footer {align-items: stretch; flex-direction: column;}
         .fragment-fingerprint { justify-content: space-between; }
         .fragment-reset { width: 100%; }
-      
+
         .nat64-header,
         .proxyip-header { align-items: flex-start; }
         .nat64-status,
@@ -1899,22 +1899,22 @@
         .nat64-route { overflow-x: auto; }
         .nat64-route-node { flex: 0 0 auto; }
       }
-      
+
       @media (max-width: 430px) {
         body { padding: 10px; }
-      
+
         .ip-info-section,
         .config-content,
         .modal-content { padding: 10px; }
-      
+
         .client-btn { min-height: 32px; }
         .client-btn .button-text { font-size: 11px; }
-      
+
         .button,
         .refresh-btn,
         .icon-btn,
         .client-btn { font-size: 12px; }
-      
+
         .ip-info-item .label { font-size: 10px; }
         .ip-info-item .value { font-size: 12px; }
 
@@ -2398,7 +2398,10 @@
           const score = data.threatScore;
           const risk = data.risk || "";
           const badgeClass = getRiskBadgeClass(risk, score);
-          elements.proxy.innerHTML = `<span class="badge ${badgeClass}">${score} - ${risk} Risk</span>`;
+          elements.proxy.innerHTML =
+            score === null || score === undefined
+              ? `<span class="badge badge-neutral">N/A</span>`
+              : `<span class="badge ${badgeClass}">${score} - ${risk} Risk</span>`;
         }
       }
 

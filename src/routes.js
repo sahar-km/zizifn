@@ -14,10 +14,20 @@ import {
   cacheGetJson,
   cachePutJson,
   pickRandomProxyPort,
+  API_HEADERS,
 } from "./core.js";
+
 import panelB64 from "./panel.b64";
-const panelBytes = Uint8Array.from(atob(panelB64), (c) => c.charCodeAt(0));
-const panelHtml = new TextDecoder("utf-8").decode(panelBytes);
+
+let panelHtml = null;
+function getPanelHtml() {
+  if (!panelHtml) {
+    panelHtml = new TextDecoder("utf-8").decode(
+      Uint8Array.from(atob(panelB64), (c) => c.charCodeAt(0)),
+    );
+  }
+  return panelHtml;
+}
 
 export async function handleIpSubscription(
   request,
@@ -188,37 +198,54 @@ export async function handleIpSubscription(
 export async function handleMyConnection(request, env, ctx) {
   const clientIP = request.headers.get("CF-Connecting-IP") || "127.0.0.1";
   const cf = request.cf || {};
-  let threatScore = 0;
-  let risk = "Low";
+  let threatScore = null;
+  let risk = "Unknown";
+  let country = cf.country || "";
+  let city = cf.city || "";
+  let isp = cf.asOrganization || "";
 
   try {
     const harmonicaRes = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${clientIP}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
-      },
+      `https://api-serpents.pages.dev/${clientIP}`,
+      { headers: API_HEADERS },
       4000,
     );
     if (harmonicaRes.ok) {
       const data = await harmonicaRes.json();
       if (data) {
         const targetObj = data.info || data;
-        threatScore = targetObj.score ?? targetObj.fraud_score ?? targetObj.threatScore ?? 0;
+        threatScore = targetObj.score ?? targetObj.fraud_score ?? targetObj.threatScore ?? null;
         if (targetObj.risk) risk = targetObj.risk.charAt(0).toUpperCase() + targetObj.risk.slice(1);
+
+        const details = data.details || {};
+        if (!country) country = details.country || "";
+        if (!city) city = details.city || "";
+        if (!isp) isp = details.isp || details.organization || "";
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("Serpents api my-connection fetch failed:", e.toString());
+  }
+
+  if (!country || country === "N/A" || !isp || isp === "N/A") {
+    try {
+      const fallbackMeta = await fetchFreeIpMeta(clientIP);
+      if (fallbackMeta) {
+        if (!country || country === "N/A") country = fallbackMeta.country || country;
+        if (!city) city = fallbackMeta.city || city;
+        if (!isp || isp === "N/A") isp = fallbackMeta.org || isp;
+      }
+    } catch (e) {
+      console.error("my-connection fallback failed:", e.toString());
+    }
+  }
 
   return new Response(
     JSON.stringify({
       ip: clientIP,
-      country: cf.country || "N/A",
-      city: cf.city || "",
-      isp: cf.asOrganization || "N/A",
+      country: country || "N/A",
+      city: city || "",
+      isp: isp || "N/A",
       threatScore,
       risk,
     }),
@@ -290,37 +317,102 @@ export async function handleProxyHostInfo(request, env, ctx) {
   }
 }
 
+async function fetchFreeIpMeta(ip) {
+  try {
+    const res = await safeFetch(`https://ipwho.is/${ip}`, { headers: API_HEADERS }, 4000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success !== false) {
+        return {
+          country: data.country || "Unknown",
+          countryCode: (data.country_code || "").toLowerCase(),
+          city: data.city || "",
+          org: data.connection?.isp || data.connection?.org || "",
+        };
+      }
+    }
+  } catch (e) {
+    console.error("ipwho.is fallback fetch failed:", e.toString());
+  }
+
+  try {
+    const res = await safeFetch(`https://ipapi.co/${ip}/json/`, { headers: API_HEADERS }, 4000);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && !data.error) {
+        return {
+          country: data.country_name || "Unknown",
+          countryCode: (data.country_code || "").toLowerCase(),
+          city: data.city || "",
+          org: data.org || data.asn || "",
+        };
+      }
+    }
+  } catch (e) {
+    console.error("ipapi.co fallback fetch failed:", e.toString());
+  }
+
+  return null;
+}
+
 async function FetchIPData(ip) {
+  let country = "Unknown";
+  let countryCode = "";
+  let city = "";
+  let org = "";
+  let score = 0;
+  let risk = "Unknown";
+  let harmonicaSuccess = false;
+
   try {
     const res = await safeFetch(
-      `https://harmonica.serpents.workers.dev/${ip}`,
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-          Accept: "application/json",
-        },
-      },
+      `https://cf-connected.pages.dev/${ip}`,
+      { headers: API_HEADERS },
       4000,
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data) return null;
-    const info = data.info || {};
-    const details = data.details || {};
-    const threatScore = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
-    const risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
-    return {
-      country: details.country || "Unknown",
-      countryCode: (details.country_code || "").toLowerCase(),
-      city: details.city || "",
-      org: details.isp || details.organization || "",
-      score: threatScore,
-      risk,
-    };
+    if (res.ok) {
+      const data = await res.json();
+      if (data) {
+        harmonicaSuccess = true;
+        const info = data.info || {};
+        const details = data.details || {};
+        score = info.score ?? info.fraud_score ?? info.threatScore ?? 0;
+        risk = info.risk ? info.risk.charAt(0).toUpperCase() + info.risk.slice(1) : "Unknown";
+        country = details.country || "Unknown";
+        countryCode = (details.country_code || "").toLowerCase();
+        city = details.city || "";
+        org = details.isp || details.organization || "";
+      }
+    }
   } catch (e) {
-    return null;
+    console.error("CF-Connected api — FetchIPData failed:", e.toString());
   }
+
+  const hasLocationInfo = country && country !== "Unknown";
+  if (!harmonicaSuccess || !hasLocationInfo) {
+    try {
+      const fallbackMeta = await fetchFreeIpMeta(ip);
+      if (fallbackMeta) {
+        if (!hasLocationInfo) {
+          country = fallbackMeta.country || country;
+          countryCode = fallbackMeta.countryCode || countryCode;
+          city = fallbackMeta.city || city;
+          org = fallbackMeta.org || org;
+        }
+      }
+    } catch (e) {
+      console.error("FetchIPData fallback failed:", e.toString());
+    }
+  }
+
+  return {
+    country,
+    countryCode,
+    city,
+    org,
+    score,
+    risk,
+  };
 }
 
 async function getIpMeta(ctx, ip) {
@@ -345,7 +437,11 @@ async function enrichWithPersistentCache(ctx, entries) {
       const cacheKey = `ipmeta:${entry.ip}`;
       const cached = await cacheGetJson(cacheKey);
       if (cached) return { ...entry, ...cached };
-      if (entry.country && entry.country !== "Unknown") await cachePutJson(ctx, cacheKey, entry);
+      if (!entry.country || entry.country === "Unknown") {
+        const meta = await getIpMeta(ctx, entry.ip);
+        return { ...entry, ...meta };
+      }
+      await cachePutJson(ctx, cacheKey, entry);
       return entry;
     }),
   );
@@ -369,7 +465,7 @@ async function resolveProxyPoolHost(host, port, ctx) {
     }
   }
 
-  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip));
+  pool = pool.filter((p) => p.ip && !isInIgnoredRange(p.ip)).slice(0, 15);
   pool = await enrichWithPersistentCache(ctx, pool);
 
   return pool.map((p) => ({
@@ -601,7 +697,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   });
 
   const settingsUrl = buildSettingsUrl(workerName);
-  const workerLabel = hostName.split(".")[0] || "INDEX";
+  const workerLabel = hostName.split(".")[0] || "0x00";
   const encodedSubName = encodeURIComponent(workerLabel);
   const subXrayUrlH = `https://${hostName}/xray/${userID}?name=${encodedSubName}`;
   const subXrayUrlV = `https://${hostName}/xray/${userID}#${encodedSubName}`;
@@ -610,7 +706,7 @@ export async function handleConfigPage(userID, hostName, proxyAddress, workerNam
   const subSbUrl = `https://${hostName}/sb/${userID}?name=${encodedSubName}`;
   const subProxyIpsUrl = `https://${hostName}/proxy-ips/${userID}`;
 
-  const finalHTML = panelHtml
+  const finalHTML = getPanelHtml()
     .replace(/{{PROXY_ADDRESS}}/g, proxyAddress)
     .replace(/{{CONFIG_DREAM}}/g, dream)
     .replace(/{{CONFIG_FREEDOM}}/g, freedom)
