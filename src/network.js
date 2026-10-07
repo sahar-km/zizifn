@@ -104,11 +104,16 @@ export async function ProtocolOverWSHandler(request, config) {
           if (udpStreamWriter) return udpStreamWriter.write(chunk);
           if (remoteSocketWapper.value) {
             const writer = remoteSocketWapper.value.writable.getWriter();
-            await writer.write(chunk);
-            writer.releaseLock();
+            try {
+              await writer.write(chunk);
+            } catch (error) {
+              safeCloseWebSocket(webSocket);
+            } finally {
+              writer.releaseLock();
+            }
             return;
           }
-
+          
           const header = processHeader(new Uint8Array(chunk), config.userID);
           if (header.has_error) throw new Error(header.message);
 
@@ -138,7 +143,10 @@ export async function ProtocolOverWSHandler(request, config) {
             vlessResponseHeader,
             log,
             config,
-          );
+          ).catch((error) => {
+            console.error("HandleTCPOutBound failed:", error.stack || error);
+            safeCloseWebSocket(webSocket);
+          });
         },
         close() {
           log(`readableWebSocketStream closed`);
@@ -155,6 +163,7 @@ export async function ProtocolOverWSHandler(request, config) {
   return new Response(null, { status: 101, webSocket: client });
 }
 
+
 async function HandleTCPOutBound(
   remoteSocket,
   addressRemote,
@@ -167,13 +176,26 @@ async function HandleTCPOutBound(
 ) {
   async function connectAndWrite(address, port) {
     const formattedHost = formatConnectHost(address);
-    const tcpSocket = connect({ hostname: formattedHost, port: Number(port) });
+    const tcpSocket = connect({
+      hostname: formattedHost,
+      port: Number(port),
+    });
+
     remoteSocket.value = tcpSocket;
-    log(`connected to ${formattedHost}:${port}`);
-    const writer = tcpSocket.writable.getWriter();
-    await writer.write(rawClientData);
-    writer.releaseLock();
-    return tcpSocket;
+
+    try {
+      const writer = tcpSocket.writable.getWriter();
+      await writer.write(rawClientData);
+      writer.releaseLock();
+      log(`connected to ${formattedHost}:${port}`);
+      return tcpSocket;
+    } catch (error) {
+      try {
+        tcpSocket.close();
+      } catch {}
+      remoteSocket.value = null;
+      throw error;
+    }
   }
 
   async function retryWithPool(pool, index) {
@@ -181,16 +203,22 @@ async function HandleTCPOutBound(
       await retryWithNAT64();
       return;
     }
+
     const { host: proxyHost, port: proxyPort } = parseHostAndPort(pool[index], 443);
+
     try {
       const tcpSocket = await connectAndWrite(proxyHost, proxyPort);
+
       RemoteSocketToWS(
         tcpSocket,
         webSocket,
         protocolResponseHeader,
         () => retryWithPool(pool, index + 1),
         log,
-      );
+      ).catch((error) => {
+        console.error("Proxy RemoteSocketToWS failed:", error.stack || error);
+        safeCloseWebSocket(webSocket);
+      });
     } catch (error) {
       log(`proxy ${proxyHost}:${proxyPort} failed`, error);
       await retryWithPool(pool, index + 1);
@@ -202,56 +230,73 @@ async function HandleTCPOutBound(
       safeCloseWebSocket(webSocket);
       return;
     }
+
     const ipv4 = await resolveIPv4(addressRemote);
     const nat64Address = toNAT64Address(ipv4);
+
     if (!nat64Address) {
       log(`NAT64 fallback failed: could not resolve ${addressRemote}`);
       safeCloseWebSocket(webSocket);
       return;
     }
+
     log(`falling back to NAT64: ${nat64Address}`);
-    
+
     try {
       const tcpSocket = await connectAndWrite(nat64Address, portRemote);
-      tcpSocket.closed.catch((error) => console.log("NAT64 tcpSocket closed error", error));
-    } catch (error) {
-      log("NAT64 connect failed", error);
-      await retryWithPool(config.proxyPool || [], 0);
-      return;
-    }
-    
-    try {
-      const tcpSocket = await connectAndWrite(addressRemote, portRemote);
+
       RemoteSocketToWS(
         tcpSocket,
         webSocket,
         protocolResponseHeader,
-        () => retryWithPool(config.proxyPool || [], 0),
+        null,
         log,
-      );
+      ).catch((error) => {
+        console.error("NAT64 RemoteSocketToWS failed:", error.stack || error);
+        safeCloseWebSocket(webSocket);
+      });
     } catch (error) {
-      log("direct connect failed", error);
-      await retryWithPool(config.proxyPool || [], 0);
+      log("NAT64 connect failed", error);
+      safeCloseWebSocket(webSocket);
     }
   }
 
-  const tcpSocket = await connectAndWrite(addressRemote, portRemote);
-  RemoteSocketToWS(
-    tcpSocket,
-    webSocket,
-    protocolResponseHeader,
-    () => retryWithPool(config.proxyPool || [], 0),
-    log,
-  );
+  try {
+    const tcpSocket = await connectAndWrite(addressRemote, portRemote);
+
+    RemoteSocketToWS(
+      tcpSocket,
+      webSocket,
+      protocolResponseHeader,
+      () => retryWithPool(config.proxyPool || [], 0),
+      log,
+    ).catch((error) => {
+      console.error("Direct RemoteSocketToWS failed:", error.stack || error);
+      safeCloseWebSocket(webSocket);
+    });
+  } catch (error) {
+    log(`direct connection failed: ${addressRemote}:${portRemote}`, error);
+    await retryWithPool(config.proxyPool || [], 0);
+  }
 }
 
 function MakeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
   return new ReadableStream({
     start(controller) {
-      webSocketServer.addEventListener("message", (event) => controller.enqueue(event.data));
+      webSocketServer.addEventListener("message", (event) => {
+        try {
+          controller.enqueue(event.data);
+        } catch (error) {
+          safeCloseWebSocket(webSocketServer);
+        }
+      });
       webSocketServer.addEventListener("close", () => {
         safeCloseWebSocket(webSocketServer);
-        controller.close();
+        try {
+          controller.close();
+        } catch (error) {
+          log("stream already closed");
+        }
       });
       webSocketServer.addEventListener("error", (err) => {
         log("webSocketServer has error");

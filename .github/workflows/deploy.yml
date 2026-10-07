@@ -27,7 +27,7 @@ on:
         type: boolean
         default: false
       workernames:
-        description: "Optional: Worker names in account order, comma-separated (e.g. name1,name2,name3,name4). Leave a slot empty to use the default."
+        description: "Optional: A single name (applies to all selected accounts) OR comma-separated names by account slot (e.g. name1,name2,name3,name4 — use ',name2' to set only account 2). Empty slot = default."
         required: false
         default: ""
       proxyip:
@@ -203,7 +203,12 @@ jobs:
           SECRET_WORKERNAME: ${{ matrix.index == 1 && secrets.WORKERNAME || secrets[format('WORKERNAME_{0}', matrix.index)] }}
         run: |
           DEFAULT_NAME=$(grep -m1 '^name' wrangler.toml | sed -E 's/name[[:space:]]*=[[:space:]]*"(.*)"/\1/')
-          NAME=$(echo "$INPUT_WORKERNAMES" | awk -F',' -v i="$ACCOUNT_INDEX" '{print $i}' | tr -d '[:space:]')
+          CLEAN_NAMES=$(echo "$INPUT_WORKERNAMES" | tr -d '[:space:]')
+          if [[ "$CLEAN_NAMES" == *","* ]]; then
+            NAME=$(echo "$CLEAN_NAMES" | awk -F',' -v i="$ACCOUNT_INDEX" '{print $i}')
+          else
+            NAME="$CLEAN_NAMES"
+          fi
           if [ -z "$NAME" ]; then NAME="$SECRET_WORKERNAME"; fi
           if [ -z "$NAME" ]; then NAME="$DEFAULT_NAME"; fi
           if ! [[ "$NAME" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then

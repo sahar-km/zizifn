@@ -73,7 +73,7 @@ export async function resolveIPv4ViaDoH(hostname) {
   }
 }
 
-export async function fetchDomainIpPool(domain, timeout = 80000) {
+export async function fetchDomainIpPool(domain, timeout = 60000) {
   const parseResults = (data) => {
     if (!data || data.success === false || !Array.isArray(data.results)) return [];
     return data.results
@@ -366,5 +366,6 @@ export function buildSubscriptionHeaders(subName) {
     headers["Profile-Title"] = /^[\x20-\x7e]+$/.test(subName)
       ? subName
       : `base64:${btoa(String.fromCharCode(...new TextEncoder().encode(subName)))}`;
-  };
+  }
+  return headers;
  }

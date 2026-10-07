@@ -285,16 +285,16 @@
 
       .button.copied,
       .client-btn.copied {
-        background: var(--success-muted) !important;
-        border-color: rgba(63, 185, 80, 0.4) !important;
-        color: #7ee787 !important;
+        background: var(--bgColor-overlay);
+        border-color: var(--borderColor-default);
+        color: var(--fgColor-default);
       }
 
       .button.error,
       .client-btn.error {
-        background: var(--danger-muted) !important;
-        border-color: rgba(248, 81, 73, 0.4) !important;
-        color: #ff9b92 !important;
+        background: var(--bgColor-overlay);
+        border-color: var(--borderColor-default);
+        color: var(--fgColor-default);
       }
 
       .fragment-builder {
@@ -1985,7 +1985,7 @@
       <div class="config-card">
         <div class="config-title">
           <span>Xray Core Clients</span>
-          <button class="icon-btn" aria-label="Copy configuration" title="Copy configuration" onclick="copyToClipboard(this, '{{CONFIG_DREAM}}')">
+          <button id="xray-copy-btn" class="icon-btn" aria-label="Copy configuration" title="Copy configuration">
             <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -2076,7 +2076,7 @@
             </div>
           </div>
 
-          <button id="nat64-copy-btn" type="button" class="icon-btn nat64-copy-btn" aria-label="Copy config with this NAT64 setting" data-nat64-on="{{CONFIG_NAT64_ON}}" data-nat64-off="{{CONFIG_NAT64_OFF}}">
+          <button id="nat64-copy-btn" type="button" class="icon-btn nat64-copy-btn" aria-label="Copy config with this NAT64 setting" data-nat64-on-normal="{{CONFIG_NAT64_ON_NORMAL}}" data-nat64-on-enhanced="{{CONFIG_NAT64_ON_ENHANCED}}" data-nat64-off-normal="{{CONFIG_NAT64_OFF_NORMAL}}" data-nat64-off-enhanced="{{CONFIG_NAT64_OFF_ENHANCED}}">
             <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -2312,6 +2312,24 @@
           });
       }
 
+      function flashFeedback(el, success) {
+        if (!el.dataset.flashing) {
+          el.dataset.flashing = "1";
+          const originalHTML = el.innerHTML;
+          el.innerHTML = `
+      <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="${success ? "M20 6L9 17l-5-5" : "M18 6L6 18M6 6l12 12"}"></path>
+      </svg>
+    `;
+          el.classList.add(success ? "copied" : "error");
+          setTimeout(() => {
+            el.innerHTML = originalHTML;
+            el.classList.remove("copied", "error");
+            delete el.dataset.flashing;
+          }, 1200);
+        }
+      }
+
       function updateIpApiIoDisplay(geo, prefix, originalHost) {
         const hostElement = document.getElementById(`${prefix}-host`);
         if (hostElement) hostElement.textContent = originalHost || "N/A";
@@ -2500,13 +2518,21 @@
           el.className = `badge ${on ? "badge-yes" : "badge-no"}`;
         };
         renderBadge(serverBadge, defaultOn);
-        const sync = () => renderBadge(configBadge, toggle.checked);
+        let activeConfigs = { normal: "", enhanced: "" };
+        const sync = () => {
+          renderBadge(configBadge, toggle.checked);
+          activeConfigs = toggle.checked
+            ? { normal: copyBtn.dataset.nat64OnNormal, enhanced: copyBtn.dataset.nat64OnEnhanced }
+            : { normal: copyBtn.dataset.nat64OffNormal, enhanced: copyBtn.dataset.nat64OffEnhanced };
+        };
         sync();
         toggle.addEventListener("change", sync);
         copyBtn.addEventListener("click", () => {
-          const link = toggle.checked ? copyBtn.dataset.nat64On : copyBtn.dataset.nat64Off;
-          if (!link) return;
-          copyToClipboard(copyBtn, link);
+          openXrayChoiceModal((enhanced) => {
+            const configs = enhanced ? activeConfigs.enhanced : activeConfigs.normal;
+            if (!configs) return;
+            copyToClipboard(copyBtn, configs);
+          }, `Select the config type you want to copy for this NAT64 setting (currently ${toggle.checked ? "On" : "Off"}) ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`);
         });
       }
 
@@ -2534,9 +2560,20 @@
             const selected = i === 0;
             const xrayCfg = entry.configs.find((c) => c.label === "Xray");
             const sbCfg = entry.configs.find((c) => c.label === "Singbox");
+            const xrayNormalLink = entry.xrayNormalLink ?? "";
             const configButtons = entry.configs
-              .map(
-                (cfgItem) => `
+              .map((cfgItem) =>
+                cfgItem.label === "Xray"
+                  ? `
+                  <button type="button" class="icon-btn" data-proxyip-link-normal="${encodeURIComponent(xrayNormalLink)}" data-proxyip-link-enhanced="${encodeURIComponent(cfgItem.link)}" aria-label="Copy ${escapeHtml(cfgItem.label)} config for ${escapeHtml(entry.ip)}">
+                    <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>${escapeHtml(cfgItem.label)}</span>
+                  </button>
+                `
+                  : `
                   <button type="button" class="icon-btn" data-proxyip-link="${encodeURIComponent(cfgItem.link)}" aria-label="Copy ${escapeHtml(cfgItem.label)} config for ${escapeHtml(entry.ip)}">
                     <svg class="copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
@@ -2551,7 +2588,7 @@
             return `
               <div class="proxyip-ip-option${selected ? " selected" : ""}">
                 <label class="proxyip-ip-toggle">
-                  <input type="checkbox" class="proxyip-select"${selected ? " checked" : ""} data-xray-link="${encodeURIComponent(xrayCfg?.link ?? "")}" data-sb-link="${encodeURIComponent(sbCfg?.link ?? "")}" aria-label="Select ${escapeHtml(entry.ip)} - shows its config and marks it for bulk copy">
+                  <input type="checkbox" class="proxyip-select"${selected ? " checked" : ""} data-xray-link="${encodeURIComponent(xrayNormalLink)}" data-xray-enhanced-link="${encodeURIComponent(xrayCfg?.link ?? "")}" data-sb-link="${encodeURIComponent(sbCfg?.link ?? "")}" aria-label="Select ${escapeHtml(entry.ip)} - shows its config and marks it for bulk copy">
                   <span class="proxyip-index">${counter.n}</span>
                   <span class="proxyip-ip-addr">${escapeHtml(entry.ip)}</span>
                   <span class="badge ${badgeClass}">${escapeHtml(entry.score ?? "?")} - ${escapeHtml(entry.risk || "Unknown")}</span>
@@ -2598,6 +2635,32 @@
         if (countEl) countEl.textContent = `${checked} selected`;
         if (xrayBtn) xrayBtn.disabled = checked === 0;
         if (sbBtn) sbBtn.disabled = checked === 0;
+      }
+
+      let v2rayngChoiceHandler = null;
+
+      const XRAY_CHOICE_MODAL_TEXT_PATTNG =
+        'OR <a href="https://github.com/patterniha/v2rayNG" target="_blank" rel="noopener noreferrer">PattNG</a>.';
+
+      function openXrayChoiceModal(onChoice, description) {
+        const modal = document.getElementById("v2rayng-choice-modal");
+        if (!modal) return;
+        const textEl = modal.querySelector(".modal-text");
+        if (textEl && description) textEl.innerHTML = description;
+        v2rayngChoiceHandler = onChoice;
+        modal.style.display = "flex";
+        setTimeout(() => modal.classList.add("visible"), 10);
+      }
+
+      function openProxyIpXrayChoiceModal(bulkCopyXrayBtn) {
+        openXrayChoiceModal(
+          (enhanced) =>
+            copySelectedProxyConfigs(
+              bulkCopyXrayBtn,
+              enhanced ? "data-xray-enhanced-link" : "data-xray-link",
+            ),
+          `Select the config type you want to copy for the selected ProxyIP(s) ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`,
+        );
       }
 
       function copySelectedProxyConfigs(button, attr) {
@@ -2649,6 +2712,16 @@
         const url = card.getAttribute("data-url");
         if (!url) return;
         list.addEventListener("click", (e) => {
+          const xrayBtn = e.target.closest("[data-proxyip-link-normal]");
+          if (xrayBtn) {
+            openXrayChoiceModal((enhanced) => {
+              const attr = enhanced ? "data-proxyip-link-enhanced" : "data-proxyip-link-normal";
+              const link = decodeURIComponent(xrayBtn.getAttribute(attr) || "");
+              if (!link) return;
+              copyToClipboard(xrayBtn, link);
+            }, `Select the config type you want to copy for this ProxyIP ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`);
+            return;
+          }
           const btn = e.target.closest("[data-proxyip-link]");
           if (!btn) return;
           const link = decodeURIComponent(btn.getAttribute("data-proxyip-link"));
@@ -2662,9 +2735,7 @@
         });
         const bulkCopyXrayBtn = document.getElementById("proxyip-bulk-copy-xray");
         const bulkCopySbBtn = document.getElementById("proxyip-bulk-copy-sb");
-        bulkCopyXrayBtn?.addEventListener("click", () =>
-          copySelectedProxyConfigs(bulkCopyXrayBtn, "data-xray-link"),
-        );
+        bulkCopyXrayBtn?.addEventListener("click", () => openProxyIpXrayChoiceModal(bulkCopyXrayBtn));
         bulkCopySbBtn?.addEventListener("click", () =>
           copySelectedProxyConfigs(bulkCopySbBtn, "data-sb-link"),
         );
@@ -2978,8 +3049,9 @@
           .map((line) => line.trim())
           .filter((line) => line !== "");
         const xrayBase = document.getElementById("xray-config")?.textContent || "";
-        const sbBase = document.getElementById("pattng-config")?.dataset.raw || "";
+        const enhancedBase = document.getElementById("pattng-config")?.textContent.trim() || "";
         let customConfigs = [];
+        let enhancedConfigs = [];
         lines.forEach((ip, index) => {
           let host = ip;
           let port = "443";
@@ -3000,13 +3072,16 @@
               makeClientConfigName(xrayBase, `Clean${index + 1}-Xray`),
             );
             customConfigs.push(xrFinal);
-            const sbFinal = rebuildVlessLink(
-              sbBase,
-              host,
-              port,
-              makeClientConfigName(sbBase, `Clean${index + 1}-Singbox`),
-            );
-            customConfigs.push(sbFinal);
+            if (enhancedBase) {
+              enhancedConfigs.push(
+                rebuildVlessLink(
+                  enhancedBase,
+                  host,
+                  port,
+                  makeClientConfigName(enhancedBase, `Clean${index + 1}-Xray-Enhanced`),
+                ),
+              );
+            }
           } catch (e) {
             console.error("Link generation failed for custom route:", e);
           }
@@ -3016,7 +3091,11 @@
           pre.textContent = outputText;
           card.style.display = "block";
           document.getElementById("btn-copy-custom").onclick = function () {
-            copyToClipboard(this, outputText);
+            openXrayChoiceModal((enhanced) => {
+              const text = (enhanced ? enhancedConfigs : customConfigs).join("\n");
+              if (!text) return;
+              copyToClipboard(this, text);
+            }, `Select the config type you want to copy for the custom clean IPs ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`);
           };
         } else {
           card.style.display = "none";
@@ -3161,14 +3240,21 @@
         if (v2rayngModal && v2rayngNormalBtn && v2rayngEnhancedBtn && v2rayngImportBtn) {
           v2rayngNormalBtn.addEventListener("click", () => {
             closeV2rayngModal();
-            attemptV2rayNgLaunch(v2rayngImportBtn.getAttribute("data-copy-url"));
+            const handler = v2rayngChoiceHandler;
+            v2rayngChoiceHandler = null;
+            handler?.(false);
           });
           v2rayngEnhancedBtn.addEventListener("click", () => {
             closeV2rayngModal();
-            attemptV2rayNgLaunch(v2rayngImportBtn.getAttribute("data-copy-url-enhanced"));
+            const handler = v2rayngChoiceHandler;
+            v2rayngChoiceHandler = null;
+            handler?.(true);
           });
           v2rayngModal.addEventListener("click", (event) => {
-            if (event.target === v2rayngModal) closeV2rayngModal();
+            if (event.target === v2rayngModal) {
+              v2rayngChoiceHandler = null;
+              closeV2rayngModal();
+            }
           });
         }
         const pattngPre = document.getElementById("pattng-config");
@@ -3285,6 +3371,13 @@
           });
           refreshPattng(originalPattngRaw, pattngPre);
         });
+        document.getElementById("xray-copy-btn")?.addEventListener("click", function () {
+          openXrayChoiceModal((enhanced) => {
+            const raw = document.getElementById(enhanced ? "pattng-config" : "xray-config")?.textContent.trim();
+            if (!raw) return;
+            copyToClipboard(this, raw);
+          }, `Select the config type you want to copy ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`);
+        });
         document.getElementById("copy-pattng-btn")?.addEventListener("click", function () {
           copyToClipboard(this, pattngPre?.dataset.raw || "");
         });
@@ -3299,8 +3392,13 @@
               }
               if (el.id === "v2rayng-import-btn") {
                 e.preventDefault();
-                v2rayngModal.style.display = "flex";
-                setTimeout(() => v2rayngModal.classList.add("visible"), 10);
+                openXrayChoiceModal(
+                  (enhanced) =>
+                    attemptV2rayNgLaunch(
+                      v2rayngImportBtn.getAttribute(enhanced ? "data-copy-url-enhanced" : "data-copy-url"),
+                    ),
+                  `Select the subscription type you want to import into v2rayNG ${XRAY_CHOICE_MODAL_TEXT_PATTNG}`,
+                );
               }
             },
             onLongPress: () => {
@@ -3387,22 +3485,17 @@
             }
           }
           link.setAttribute("data-raw-url", rawSubUrl);
-          attachLongPress(link, {
-            onTap: () => {},
-            onLongPress: () => {
-              navigator.clipboard
-                .writeText(rawSubUrl)
-                .then(() => {
-                  const toast = document.createElement("div");
-                  toast.textContent = "Subscription URL copied!";
-                  toast.style.cssText =
-                    "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:5px;z-index:9999;";
-                  document.body.appendChild(toast);
-                  setTimeout(() => toast.remove(), 2000);
-                })
-                .catch((err) => console.error("Copy failed:", err));
-            },
-          });
+          if (!link.matches(".client-btn[data-copy-url]")) {
+            attachLongPress(link, {
+              onTap: () => {},
+              onLongPress: () => {
+                navigator.clipboard
+                  .writeText(rawSubUrl)
+                  .then(() => flashFeedback(link, true))
+                  .catch((err) => console.error("Copy failed:", err));
+              },
+            });
+          }
           link.addEventListener("contextmenu", (e) => {
             navigator.clipboard
               .writeText(rawSubUrl)
